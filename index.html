@@ -3,411 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LotoQuant - Análise Probabilística de Loterias</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>LotoQuant - Sistema de Análise de Loterias com IA</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        /* ============================================ */
+        /* CSS COMPLETO INLINE                          */
+        /* ============================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0e1a; --bg2: #111827; --bg3: #1f2937;
+            --text: #e5e7eb; --text2: #9ca3af; --accent: #8b5cf6;
+            --accent2: #6d28d9; --green: #10b981; --red: #ef4444;
+            --orange: #f59e0b; --blue: #3b82f6;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR */
+        .sidebar { width: 260px; background: var(--bg2); border-right: 1px solid var(--bg3); padding: 20px 0; flex-shrink: 0; }
+        .sidebar-header { padding: 0 20px 20px; border-bottom: 1px solid var(--bg3); }
+        .sidebar-header h1 { font-size: 24px; background: linear-gradient(135deg, var(--accent), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sidebar-header p { font-size: 11px; color: var(--text2); margin-top: 4px; }
+        .nav-item { padding: 12px 20px; cursor: pointer; transition: all 0.2s; color: var(--text2); font-size: 14px; display: flex; align-items: center; gap: 10px; }
+        .nav-item:hover { background: var(--bg3); color: var(--text); }
+        .nav-item.active { background: var(--accent2); color: #fff; border-right: 3px solid var(--accent); }
+
+        /* MAIN */
+        .main-content { flex: 1; padding: 24px; overflow-y: auto; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .top-bar h2 { font-size: 22px; }
+        .game-selector select { background: var(--bg3); color: var(--text); border: 1px solid var(--accent); padding: 8px 16px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+
+        /* PAGES */
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+
+        /* STATS GRID */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--bg2); border: 1px solid var(--bg3); border-radius: 12px; padding: 20px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+        /* NUMBER CARDS */
+        .numbers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .number-card { background: var(--bg2); border: 2px solid var(--bg3); border-radius: 12px; padding: 12px; text-align: center; transition: transform 0.2s; }
+        .number-card:hover { transform: scale(1.05); }
+        .number-card .number { font-size: 24px; font-weight: 700; }
+        .number-card .score { font-size: 14px; font-weight: 600; }
+        .number-card .class-label { font-size: 11px; color: var(--text2); text-transform: uppercase; }
+        .number-card .details { font-size: 10px; color: var(--text2); margin-top: 4px; }
+
+        /* BALLS */
+        .ball { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 14px; margin: 2px; }
+        .ball.trevo { background: var(--green); }
+        .ball.hot { background: var(--red); }
+        .ball.cold { background: var(--blue); }
+
+        /* TABLE */
+        .results-table { overflow-x: auto; }
+        .results-table table { width: 100%; border-collapse: collapse; }
+        .results-table th { background: var(--bg3); padding: 12px; text-align: left; font-size: 13px; color: var(--text2); }
+        .results-table td { padding: 12px; border-bottom: 1px solid var(--bg3); font-size: 13px; }
+
+        /* PAIRS */
+        .pairs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-bottom: 24px; }
+        .pair-card { background: var(--bg2); border: 1px solid var(--bg3); border-radius: 8px; padding: 10px; text-align: center; }
+        .pair-card .pair { font-weight: 700; color: var(--accent); }
+        .pair-card .freq { font-size: 12px; color: var(--text2); margin-left: 8px; }
+
+        /* PREVISÕES */
+        .previsoes-list, .fechamento-list, .melhores-list, .alertas-list, .suggestions { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+        .previsao-card, .fechamento-card, .melhor-card, .alerta-card, .suggestion-card {
+            background: var(--bg2); border: 1px solid var(--bg3); border-radius: 12px; padding: 16px;
+        }
+        .previsao-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .previsao-num { font-weight: 700; }
+        .previsao-conf { font-weight: 600; }
+        .previsao-score { font-size: 12px; color: var(--text2); margin-top: 8px; }
+        .fechamento-card { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .jogo-num { font-weight: 700; min-width: 70px; }
+        .jogo-score { font-size: 12px; color: var(--text2); }
+
+        /* ACERTOS */
+        .acertos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .acerto-card { background: var(--bg2); border: 1px solid var(--bg3); border-radius: 12px; padding: 12px; text-align: center; }
+        .acerto-num { font-size: 28px; font-weight: 700; color: var(--accent); }
+        .acerto-label { font-size: 11px; color: var(--text2); }
+        .acerto-qtd { font-size: 16px; font-weight: 600; color: var(--green); }
+
+        /* ALERTAS */
+        .alerta-card { display: flex; align-items: center; gap: 12px; border-left: 4px solid var(--accent); }
+        .alerta-icon { font-size: 24px; }
+
+        /* FORMS */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text2); }
+        .form-group input, .form-group select { width: 100%; padding: 10px 14px; background: var(--bg3); border: 1px solid #374151; border-radius: 8px; color: var(--text); font-size: 14px; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        /* BUTTONS */
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent2); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-success { background: var(--green); color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-warning { background: var(--orange); color: #000; }
+        .btn-warning:hover { background: #d97706; }
+
+        /* LOADING */
+        .loading { text-align: center; padding: 48px; }
+        .spinner { width: 48px; height: 48px; border: 4px solid var(--bg3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* STATES */
+        .empty-state, .error-state { text-align: center; padding: 48px; color: var(--text2); }
+        .error-state { color: var(--red); }
+
+        /* NOTIFICATIONS */
+        .notification { position: fixed; top: 20px; right: 20px; padding: 14px 24px; border-radius: 8px; font-size: 14px; z-index: 9999; transform: translateX(120%); transition: transform 0.3s ease; max-width: 400px; }
+        .notification.show { transform: translateX(0); }
+        .notification-success { background: #065f46; color: #d1fae5; border: 1px solid var(--green); }
+        .notification-error { background: #7f1d1d; color: #fecaca; border: 1px solid var(--red); }
+        .notification-info { background: #1e3a5f; color: #bfdbfe; border: 1px solid var(--blue); }
+
+        /* IMPORT */
+        .import-item { padding: 8px 12px; border-radius: 6px; background: var(--bg3); margin-bottom: 6px; font-size: 13px; }
+        .import-total { padding: 12px; border-radius: 8px; background: var(--accent2); color: #fff; font-weight: 700; margin-top: 12px; text-align: center; }
+
+        /* UNIVERSO */
+        .universo-nums { margin-bottom: 24px; }
+
+        /* RECOMMENDATIONS */
+        .recommendations { list-style: none; }
+        .recommendations li { padding: 10px 14px; background: var(--bg3); border-radius: 8px; margin-bottom: 8px; font-size: 13px; }
+        .recommendations li::before { content: '💡 '; }
+
+        /* CONFIG SECTION */
+        .config-card { background: var(--bg2); border: 1px solid var(--bg3); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+        .config-card h3 { margin-bottom: 16px; color: var(--accent); }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--bg3); }
+            .sidebar nav { display: flex; overflow-x: auto; }
+            .nav-item { white-space: nowrap; padding: 10px 14px; font-size: 12px; }
+            .form-row { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
 </head>
 <body>
 
-    <!-- MOBILE MENU TOGGLE -->
-    <button id="mobile-menu-btn" class="mobile-menu-btn">☰</button>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h1>LotoQuant</h1>
+        <p>Análise Probabilística com IA</p>
+    </div>
+    <nav>
+        <div class="nav-item active" data-page="dashboard">📊 Dashboard</div>
+        <div class="nav-item" data-page="analise">🤖 Análise IA</div>
+        <div class="nav-item" data-page="previsoes">🎯 Previsões</div>
+        <div class="nav-item" data-page="validar">✅ Validar Jogo</div>
+        <div class="nav-item" data-page="fechamento">🔢 Fechamento</div>
+        <div class="nav-item" data-page="backtest">📈 Backtesting</div>
+        <div class="nav-item" data-page="alertas">🔔 Alertas</div>
+        <div class="nav-item" data-page="dados">📝 Inserir Dados</div>
+    </nav>
+</aside>
 
-    <!-- SIDEBAR -->
-    <nav id="sidebar">
-        <div class="sidebar-header">
-            <h1>🎯 LotoQuant</h1>
-            <p class="sidebar-subtitle">Análise Probabilística</p>
-        </div>
-        <ul class="nav-menu">
-            <li class="nav-item active" data-page="dashboard">
-                <span class="nav-icon">📊</span> Dashboard
-            </li>
-            <li class="nav-item" data-page="analise">
-                <span class="nav-icon">🔬</span> Análise IA
-            </li>
-            <li class="nav-item" data-page="previsoes">
-                <span class="nav-icon">🎯</span> Previsões
-            </li>
-            <li class="nav-item" data-page="validar">
-                <span class="nav-icon">✅</span> Validar Jogo
-            </li>
-            <li class="nav-item" data-page="fechamento">
-                <span class="nav-icon">🔒</span> Fechamento
-            </li>
-            <li class="nav-item" data-page="backtesting">
-                <span class="nav-icon">📈</span> Backtesting
-            </li>
-            <li class="nav-item" data-page="alertas">
-                <span class="nav-icon">🔔</span> Alertas
-                <span id="alertas-badge" class="badge hidden">0</span>
-            </li>
-            <li class="nav-item" data-page="inserir">
-                <span class="nav-icon">➕</span> Inserir Dados
-            </li>
-        </ul>
-        <div class="sidebar-footer">
-            <select id="jogo-selector">
-                <option value="mega-sena">🎱 Mega-Sena</option>
-                <option value="lotofacil">🍀 Lotofácil</option>
-                <option value="lotomania">💰 Lotomania</option>
-                <option value="mais-milionaria">💎 +Milionária</option>
+<!-- MAIN -->
+<main class="main-content">
+    <div class="top-bar">
+        <h2 id="page-title">Dashboard</h2>
+        <div class="game-selector">
+            <select id="game-selector">
+                <option value="mega-sena">Mega-Sena</option>
+                <option value="lotofacil">Lotofácil</option>
+                <option value="lotomania">Lotomania</option>
+                <option value="mais-milionaria">+Milionária</option>
             </select>
         </div>
-    </nav>
+    </div>
 
-    <!-- MAIN CONTENT -->
-    <main id="main-content">
-
-        <!-- ========== DASHBOARD ========== -->
-        <section id="page-dashboard" class="page active">
-            <div class="page-header">
-                <h2>Dashboard</h2>
-                <span id="dash-jogo-nome" class="jogo-tag">Mega-Sena</span>
+    <!-- DASHBOARD -->
+    <section id="page-dashboard" class="page-section active">
+        <div id="dashboard-content">
+            <div class="empty-state">
+                <p>Configure o backend na aba "Inserir Dados" para começar.</p>
             </div>
+        </div>
+    </section>
 
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="stat-total-concursos">-</div>
-                    <div class="stat-label">Total Concursos</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="stat-ultimo-concurso">-</div>
-                    <div class="stat-label">Último Concurso</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="stat-ultimo-data">-</div>
-                    <div class="stat-label">Data Último Sorteio</div>
-                </div>
-                <div class="stat-card accent">
-                    <div class="stat-value" id="stat-proximo">-</div>
-                    <div class="stat-label">Próximo Concurso</div>
-                </div>
+    <!-- ANÁLISE IA -->
+    <section id="page-analise" class="page-section">
+        <p style="margin-bottom:16px;color:var(--text2)">Executa 6 modelos de IA: Frequência Ponderada, Atraso, Padrões, Distribuição, LSTM e XGBoost.</p>
+        <button class="btn btn-primary" id="btn-analise">🤖 Executar Análise Completa</button>
+        <div id="analise-content" style="margin-top:24px"></div>
+    </section>
+
+    <!-- PREVISÕES -->
+    <section id="page-previsoes" class="page-section">
+        <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group">
+                <label>Quantidade de Jogos</label>
+                <input type="number" id="qtd-previsoes" value="5" min="1" max="20">
             </div>
+        </div>
+        <button class="btn btn-primary" id="btn-previsoes">🎯 Gerar Previsões</button>
+        <div id="previsoes-content" style="margin-top:24px"></div>
+    </section>
 
-            <div class="charts-grid">
-                <div class="chart-card full-width">
-                    <h3>Score dos Números (Ensemble de 6 modelos)</h3>
-                    <div class="chart-container"><canvas id="chart-frequencia"></canvas></div>
-                </div>
-                <div class="chart-card">
-                    <h3>🔥 Top 10 — Mais Quentes</h3>
-                    <div class="chart-container"><canvas id="chart-top10"></canvas></div>
-                </div>
-                <div class="chart-card">
-                    <h3>❄️ Top 10 — Mais Atrasados</h3>
-                    <div class="chart-container"><canvas id="chart-atrasados"></canvas></div>
-                </div>
+    <!-- VALIDAR JOGO -->
+    <section id="page-validar" class="page-section">
+        <p style="margin-bottom:16px;color:var(--text2)">Insira seus números para avaliar a qualidade do jogo.</p>
+        <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group">
+                <label>Números (separados por vírgula ou espaço)</label>
+                <input type="text" id="validar-numeros" placeholder="Ex: 4, 8, 15, 16, 23, 42">
             </div>
-
-            <div class="card">
-                <h3>Últimos 10 Resultados</h3>
-                <div id="ultimos-resultados" class="resultados-list">
-                    <p class="text-muted">Carregando resultados...</p>
-                </div>
+            <div class="form-group">
+                <label>Trevos (+Milionária - opcional)</label>
+                <input type="text" id="validar-trevos" placeholder="Ex: 2, 5">
             </div>
-        </section>
+        </div>
+        <button class="btn btn-primary" id="btn-validar">✅ Validar Jogo</button>
+        <div id="validacao-content" style="margin-top:24px"></div>
+    </section>
 
-        <!-- ========== ANÁLISE IA ========== -->
-        <section id="page-analise" class="page">
-            <div class="page-header">
-                <h2>Análise Completa IA</h2>
-                <button id="btn-analisar" class="btn btn-primary">🧠 Executar Análise</button>
+    <!-- FECHAMENTO -->
+    <section id="page-fechamento" class="page-section">
+        <p style="margin-bottom:16px;color:var(--text2)">Gera o conjunto mínimo de jogos para cobertura combinatória.</p>
+        <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group">
+                <label>Garantia</label>
+                <select id="fechamento-garantia">
+                    <option value="terno">Terno (3 acertos)</option>
+                    <option value="quadra" selected>Quadra (4 acertos)</option>
+                    <option value="quina">Quina (5 acertos)</option>
+                </select>
             </div>
-
-            <div class="card info-card">
-                <p>A análise treina 6 modelos de Machine Learning (Frequência Ponderada, Atraso, Padrões,
-                Distribuição, LSTM e XGBoost) e combina os resultados em um score único por número.</p>
+            <div class="form-group">
+                <label>Tamanho do Universo</label>
+                <input type="number" id="fechamento-tamanho" value="18" min="8" max="40">
             </div>
+        </div>
+        <button class="btn btn-primary" id="btn-fechamento">🔢 Gerar Fechamento</button>
+        <div id="fechamento-content" style="margin-top:24px"></div>
+    </section>
 
-            <div id="analise-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Treinando 6 modelos de IA... Isso pode levar 1-3 minutos.</p>
+    <!-- BACKTESTING -->
+    <section id="page-backtest" class="page-section">
+        <p style="margin-bottom:16px;color:var(--text2)">Testa a estratégia contra resultados passados.</p>
+        <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group">
+                <label>Concursos para Testar</label>
+                <input type="number" id="backtest-concursos" value="50" min="10" max="200">
             </div>
-
-            <div id="analise-resultado" class="hidden">
-                <div class="card">
-                    <h3>🏆 Ranking dos Números (Top 20)</h3>
-                    <p class="text-muted mb-12">Vermelho = quente | Amarelo = morno | Cinza = neutro | Azul = frio</p>
-                    <div id="ranking-grid" class="numeros-grid"></div>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-card">
-                        <h3>📊 Perfil de Distribuição</h3>
-                        <div id="distribuicao-info"></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3>🎯 Universo Reduzido</h3>
-                        <div id="universo-info"></div>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3>🤝 Pares Mais Frequentes</h3>
-                    <div id="pares-list"></div>
-                </div>
-                <div class="card">
-                    <h3>⏰ Números com Atraso Crítico</h3>
-                    <div id="atrasados-list"></div>
-                </div>
+            <div class="form-group">
+                <label>Cartelas por Concurso</label>
+                <input type="number" id="backtest-cartelas" value="3" min="1" max="10">
             </div>
-        </section>
+        </div>
+        <button class="btn btn-primary" id="btn-backtest">📈 Executar Backtesting</button>
+        <div id="backtest-content" style="margin-top:24px"></div>
+    </section>
 
-        <!-- ========== PREVISÕES ========== -->
-        <section id="page-previsoes" class="page">
-            <div class="page-header">
-                <h2>Previsões IA</h2>
-                <div class="header-controls">
-                    <label>Cartelas:
-                        <input type="number" id="num-cartelas" value="3" min="1" max="20">
-                    </label>
-                    <button id="btn-prever" class="btn btn-primary">🎯 Gerar Previsões</button>
+    <!-- ALERTAS -->
+    <section id="page-alertas" class="page-section">
+        <p style="margin-bottom:16px;color:var(--text2)">Detecta padrões fortes: atrasos críticos, convergência de modelos, pares frequentes.</p>
+        <button class="btn btn-primary" id="btn-alertas">🔔 Verificar Alertas</button>
+        <div id="alertas-content" style="margin-top:24px"></div>
+    </section>
+
+    <!-- INSERIR DADOS -->
+    <section id="page-dados" class="page-section">
+        <!-- CONFIG -->
+        <div class="config-card">
+            <h3>⚙️ Configuração do Backend</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>URL do Backend (Hugging Face)</label>
+                    <input type="text" id="config-backend-url" placeholder="https://wanderhalleylee-loteria-halley-api.hf.space">
+                </div>
+                <div class="form-group">
+                    <label>API Key (API_SECRET)</label>
+                    <input type="password" id="config-api-key" placeholder="Sua chave API">
                 </div>
             </div>
+            <button class="btn btn-success" id="btn-save-config">💾 Salvar Configuração</button>
+        </div>
 
-            <div id="previsoes-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Gerando previsões com ensemble de 6 modelos...</p>
+        <!-- IMPORTAR HISTÓRICO -->
+        <div class="config-card">
+            <h3>📥 Importar Dados Históricos</h3>
+            <p style="margin-bottom:12px;color:var(--text2);font-size:13px">
+                Importa resultados diretamente da API da Caixa pelo seu navegador e salva no banco de dados.
+                A importação é feita via proxy para evitar bloqueios do servidor.
+            </p>
+            <div class="form-group">
+                <label>Importar desde</label>
+                <select id="import-desde">
+                    <option value="2024">2024 (~2 min)</option>
+                    <option value="2022" selected>2022 (~5 min)</option>
+                    <option value="2020">2020 (~15 min)</option>
+                    <option value="2019">2019 (~20 min)</option>
+                    <option value="2018">2018 (~25 min)</option>
+                </select>
             </div>
-            <div id="previsoes-resultado"></div>
+            <button class="btn btn-warning" id="btn-importar-todos" style="width:100%;margin-bottom:12px">📥 Importar Todos os Jogos</button>
+            <div id="import-status"></div>
+        </div>
 
-            <div class="card mt-20">
-                <h3>📋 Histórico de Previsões</h3>
-                <div id="previsoes-historico">
-                    <p class="text-muted">Clique em "Gerar Previsões" para começar.</p>
+        <!-- ATUALIZAR -->
+        <div class="config-card">
+            <h3>🔄 Atualizar Resultados</h3>
+            <p style="margin-bottom:12px;color:var(--text2);font-size:13px">Busca apenas os concursos mais recentes que ainda não estão no banco.</p>
+            <button class="btn btn-primary" id="btn-atualizar" style="width:100%;margin-bottom:12px">🔄 Forçar Atualização</button>
+            <div id="update-status"></div>
+        </div>
+
+        <!-- INSERIR MANUAL -->
+        <div class="config-card">
+            <h3>✏️ Inserir Resultado Manual</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Concurso</label>
+                    <input type="number" id="inserir-concurso" placeholder="2990">
+                </div>
+                <div class="form-group">
+                    <label>Data do Sorteio</label>
+                    <input type="text" id="inserir-data" placeholder="28/03/2026">
                 </div>
             </div>
-        </section>
-
-        <!-- ========== VALIDAR JOGO ========== -->
-        <section id="page-validar" class="page">
-            <div class="page-header">
-                <h2>Validar Jogo Manual</h2>
+            <div class="form-group">
+                <label>Números (separados por vírgula)</label>
+                <input type="text" id="inserir-numeros" placeholder="6, 14, 18, 29, 30, 44">
             </div>
-
-            <div class="card">
-                <p class="info-text">
-                    Já tem um jogo escolhido? Insira seus números e o sistema avalia
-                    contra os 6 modelos de IA. Receba score, classificação e sugestões de melhoria.
-                </p>
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label>Seus Números (separados por vírgula)</label>
-                        <input type="text" id="val-numeros" placeholder="Ex: 5, 12, 23, 34, 45, 56">
-                    </div>
-                    <div class="form-group full-width hidden" id="trevos-val-group">
-                        <label>Trevos (separados por vírgula)</label>
-                        <input type="text" id="val-trevos" placeholder="Ex: 2, 5">
-                    </div>
-                    <div class="form-group">
-                        <button id="btn-validar" class="btn btn-primary">✅ Validar Jogo</button>
-                    </div>
+            <div class="form-group">
+                <label>Trevos (+Milionária - opcional)</label>
+                <input type="text" id="inserir-trevos" placeholder="2, 5">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Prêmio Principal (R$)</label>
+                    <input type="number" id="inserir-premio" placeholder="0" step="0.01">
+                </div>
+                <div class="form-group" style="display:flex;align-items:end;gap:8px">
+                    <input type="checkbox" id="inserir-acumulou">
+                    <label for="inserir-acumulou" style="margin:0">Acumulou</label>
                 </div>
             </div>
+            <button class="btn btn-success" id="btn-inserir">📝 Inserir Resultado</button>
+        </div>
+    </section>
+</main>
 
-            <div id="validacao-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Analisando seu jogo contra 6 modelos de IA...</p>
-            </div>
-            <div id="validacao-resultado"></div>
-        </section>
-
-        <!-- ========== FECHAMENTO ========== -->
-        <section id="page-fechamento" class="page">
-            <div class="page-header">
-                <h2>Fechamento Combinatório</h2>
-            </div>
-
-            <div class="card">
-                <p class="info-text">
-                    Matemática pura. Gera o menor número de cartelas para garantir
-                    determinada cobertura dentro de um universo reduzido de números.
-                </p>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Tamanho do Universo</label>
-                        <input type="number" id="fech-universo" value="18" min="6" max="25">
-                        <small>Quantos números base (recomendado: 18)</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Garantia</label>
-                        <select id="fech-garantia">
-                            <option value="terno">Terno (3 acertos)</option>
-                            <option value="quadra" selected>Quadra (4 acertos)</option>
-                            <option value="quina">Quina (5 acertos)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <button id="btn-fechamento" class="btn btn-primary">🔒 Gerar Fechamento</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="fechamento-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Calculando cobertura combinatória...</p>
-            </div>
-            <div id="fechamento-resultado"></div>
-        </section>
-
-        <!-- ========== BACKTESTING ========== -->
-        <section id="page-backtesting" class="page">
-            <div class="page-header">
-                <h2>Backtesting</h2>
-            </div>
-
-            <div class="card">
-                <p class="info-text">
-                    Testa a estratégia do sistema contra sorteios passados.
-                    Mostra quantas quadras, quinas e senas o sistema teria acertado.
-                    É a prova de fogo do modelo.
-                </p>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Concursos para testar</label>
-                        <input type="number" id="bt-concursos" value="50" min="10" max="500">
-                        <small>Recomendado: 50 (rápido) ou 100 (completo)</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Cartelas por concurso</label>
-                        <input type="number" id="bt-cartelas" value="3" min="1" max="10">
-                    </div>
-                    <div class="form-group">
-                        <button id="btn-backtest" class="btn btn-primary">📈 Executar Backtest</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="backtest-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Executando backtesting... Isso pode levar 5-15 minutos.</p>
-            </div>
-            <div id="backtest-resultado"></div>
-        </section>
-
-        <!-- ========== ALERTAS ========== -->
-        <section id="page-alertas" class="page">
-            <div class="page-header">
-                <h2>Alertas Inteligentes</h2>
-                <button id="btn-verificar-alertas" class="btn btn-primary">🔔 Verificar Alertas</button>
-            </div>
-
-            <div class="card info-card">
-                <p>O sistema detecta automaticamente padrões fortes: números com atraso extremo,
-                convergência de múltiplos modelos e pares com alta frequência.</p>
-            </div>
-
-            <div id="alertas-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Verificando padrões...</p>
-            </div>
-            <div id="alertas-lista">
-                <p class="text-muted">Clique em "Verificar Alertas" para buscar padrões.</p>
-            </div>
-        </section>
-
-        <!-- ========== INSERIR DADOS ========== -->
-        <section id="page-inserir" class="page">
-            <div class="page-header">
-                <h2>Inserir Dados</h2>
-            </div>
-
-            <!-- CONFIGURAÇÃO -->
-            <div class="card">
-                <h3 style="margin-top:0;">⚙️ Configuração do Sistema</h3>
-                <p class="info-text">Configure a conexão com o backend. Você só precisa fazer isso uma vez.</p>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Backend URL</label>
-                        <input type="text" id="backend-url-input" placeholder="https://seu-space.hf.space">
-                    </div>
-                    <div class="form-group">
-                        <button id="btn-save-url" class="btn btn-small">💾 Salvar URL</button>
-                    </div>
-                    <div class="form-group">
-                        <label>API Key (para escrita)</label>
-                        <input type="password" id="api-key-input" placeholder="Sua chave API secreta">
-                    </div>
-                    <div class="form-group">
-                        <button id="btn-save-key" class="btn btn-small">💾 Salvar Key</button>
-                    </div>
-                </div>
-                <div id="config-feedback"></div>
-            </div>
-
-            <!-- IMPORTAR HISTÓRICO -->
-            <div class="card">
-                <h3 style="margin-top:0;">📥 Importar Dados Históricos</h3>
-                <p class="info-text">
-                    Importa anos de resultados da API da Caixa Econômica Federal.
-                    <strong>Execute isso na primeira vez</strong> — leva alguns minutos dependendo do período.
-                </p>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Importar desde o ano</label>
-                        <select id="import-desde">
-                            <option value="2024">2024 (rápido ~2 min)</option>
-                            <option value="2022">2022 (~5 min)</option>
-                            <option value="2020" selected>2020 (~15 min)</option>
-                            <option value="2019">2019 (~20 min)</option>
-                            <option value="2018">2018 (~25 min)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <button id="btn-importar-todos" class="btn btn-primary">📥 Importar Todos os Jogos</button>
-                    </div>
-                </div>
-                <div id="import-feedback"></div>
-            </div>
-
-            <!-- INSERIR RESULTADO MANUAL -->
-            <div class="card">
-                <h3 style="margin-top:0;">➕ Inserir Resultado Manualmente</h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Concurso</label>
-                        <input type="number" id="inp-concurso" placeholder="Ex: 2750">
-                    </div>
-                    <div class="form-group">
-                        <label>Data do Sorteio</label>
-                        <input type="date" id="inp-data">
-                    </div>
-                    <div class="form-group full-width">
-                        <label>Números (separados por vírgula)</label>
-                        <input type="text" id="inp-numeros" placeholder="Ex: 5, 12, 23, 34, 45, 56">
-                    </div>
-                    <div class="form-group full-width hidden" id="trevos-group">
-                        <label>Trevos (separados por vírgula)</label>
-                        <input type="text" id="inp-trevos" placeholder="Ex: 2, 5">
-                    </div>
-                    <div class="form-group">
-                        <label>Prêmio Principal (R$)</label>
-                        <input type="number" id="inp-premio" value="0" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="inp-acumulou"> Acumulou
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <button id="btn-inserir" class="btn btn-primary">➕ Inserir</button>
-                    </div>
-                </div>
-                <div id="inserir-feedback"></div>
-            </div>
-
-            <!-- FORÇAR ATUALIZAÇÃO -->
-            <div class="card">
-                <h3 style="margin-top:0;">🔄 Forçar Atualização</h3>
-                <p class="info-text">Busca apenas os resultados mais recentes (últimos concursos) na API da Caixa.</p>
-                <button id="btn-forcar-update" class="btn btn-secondary">🔄 Atualizar Agora</button>
-                <div id="update-feedback"></div>
-            </div>
-        </section>
-
-    </main>
-
-    <script src="js/utils.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/charts.js"></script>
-    <script src="js/app.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
