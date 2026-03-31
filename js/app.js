@@ -1,5 +1,5 @@
 // ============================================================
-// js/app.js - LotoQuant Frontend v2.0 (Proxy Import Fix)
+// js/app.js - LotoQuant Frontend v2.1 (Fix JSON parse + Import)
 // ============================================================
 
 const App = {
@@ -14,6 +14,18 @@ const App = {
         'lotofacil': { nome: 'Lotofácil', min: 1, max: 25, escolha: 15, apiNome: 'lotofacil', trevos: false },
         'lotomania': { nome: 'Lotomania', min: 0, max: 99, escolha: 50, apiNome: 'lotomania', trevos: false },
         'mais-milionaria': { nome: '+Milionária', min: 1, max: 50, escolha: 6, apiNome: 'maismilionaria', trevos: true, trevosMin: 1, trevosMax: 6, trevosEscolha: 2 }
+    },
+
+    // ========================================
+    // HELPER: Parse arrays que vem como string
+    // ========================================
+    parseArray(val) {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+            try { return JSON.parse(val); } catch(e) { return []; }
+        }
+        return [];
     },
 
     // ========================================
@@ -106,6 +118,7 @@ const App = {
         document.getElementById('btn-alertas')?.addEventListener('click', () => this.verificarAlertas());
         document.getElementById('btn-inserir')?.addEventListener('click', () => this.inserirResultado());
         document.getElementById('btn-importar-todos')?.addEventListener('click', () => this.importarHistoricoProxy());
+        document.getElementById('btn-importar-jogo')?.addEventListener('click', () => this.importarJogoIndividual());
         document.getElementById('btn-atualizar')?.addEventListener('click', () => this.forcarAtualizacao());
     },
 
@@ -160,17 +173,18 @@ const App = {
             if (data.resultados && data.resultados.length > 0) {
                 html += '<div class="results-table"><table><thead><tr><th>Concurso</th><th>Data</th><th>Números</th><th>Prêmio</th></tr></thead><tbody>';
                 for (const r of data.resultados) {
-                    const nums = (Array.isArray(r.numeros) ? r.numeros : JSON.parse(r.numeros || '[]'))
+                    const nums = this.parseArray(r.numeros)
                         .map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ');
-                    const trevos = r.trevos && r.trevos.length > 0
-                        ? ' + ' + r.trevos.map(t => `<span class="ball trevo">${t}</span>`).join(' ')
+                    const trevosArr = this.parseArray(r.trevos);
+                    const trevos = trevosArr.length > 0
+                        ? ' + ' + trevosArr.map(t => `<span class="ball trevo">${t}</span>`).join(' ')
                         : '';
                     const premio = r.premio_principal ? `R$ ${Number(r.premio_principal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-';
                     html += `<tr><td>${r.concurso}</td><td>${r.data_sorteio || '-'}</td><td>${nums}${trevos}</td><td>${premio}</td></tr>`;
                 }
                 html += '</tbody></table></div>';
             } else {
-                html += '<div class="empty-state"><p>⚠️ Nenhum resultado encontrado. Importe os dados históricos na aba "Inserir Dados".</p></div>';
+                html += '<div class="empty-state"><p>Nenhum resultado encontrado. Importe os dados na aba "Inserir Dados".</p></div>';
             }
             container.innerHTML = html;
         } catch (err) {
@@ -247,12 +261,13 @@ const App = {
                 body: JSON.stringify({ jogo_slug: this.currentGame, quantidade_jogos: qtd })
             });
 
-            let html = `<div class="stat-card"><div class="stat-value">${data.total_concursos_analisados}</div><div class="stat-label">Concursos Analisados</div></div>`;
+            let html = `<div class="stat-card" style="margin-bottom:16px"><div class="stat-value">${data.total_concursos_analisados}</div><div class="stat-label">Concursos Analisados</div></div>`;
             html += '<div class="previsoes-list">';
 
             data.previsoes?.forEach((p, i) => {
-                const nums = p.numeros.map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ');
-                const trevos = p.trevos?.length > 0 ? ' + ' + p.trevos.map(t => `<span class="ball trevo">${t}</span>`).join(' ') : '';
+                const nums = this.parseArray(p.numeros).map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ');
+                const trevosArr = this.parseArray(p.trevos);
+                const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span class="ball trevo">${t}</span>`).join(' ') : '';
                 const confCor = p.confianca > 70 ? '#27ae60' : p.confianca > 50 ? '#f39c12' : '#e74c3c';
                 html += `<div class="previsao-card">
                     <div class="previsao-header">
@@ -314,7 +329,7 @@ const App = {
             html += '</div>';
 
             if (data.sugestoes_melhoria?.length > 0) {
-                html += '<h3>💡 Sugestões de Melhoria</h3><div class="suggestions">';
+                html += '<h3>Sugestões de Melhoria</h3><div class="suggestions">';
                 for (const s of data.sugestoes_melhoria) {
                     html += `<div class="suggestion-card">Trocar <span class="ball cold">${String(s.trocar).padStart(2, '0')}</span> por <span class="ball hot">${String(s.por).padStart(2, '0')}</span> (ganho: +${(s.ganho_score * 100).toFixed(1)}%)</div>`;
                 }
@@ -322,7 +337,7 @@ const App = {
             }
 
             if (data.recomendacoes?.length > 0) {
-                html += '<h3>📋 Recomendações</h3><ul class="recommendations">';
+                html += '<h3>Recomendações</h3><ul class="recommendations">';
                 for (const r of data.recomendacoes) {
                     html += `<li>${r}</li>`;
                 }
@@ -358,12 +373,13 @@ const App = {
                     <div class="stat-card"><div class="stat-value">${data.garantia}</div><div class="stat-label">Garantia</div></div>
                 </div>
                 <h3>Universo Selecionado</h3>
-                <div class="universo-nums">${data.universo?.map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ')}</div>
+                <div class="universo-nums">${(data.universo||[]).map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ')}</div>
                 <h3>Jogos Gerados</h3><div class="fechamento-list">`;
 
-            data.jogos?.forEach((j, i) => {
-                const nums = j.numeros.map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ');
-                const trevos = j.trevos?.length > 0 ? ' + ' + j.trevos.map(t => `<span class="ball trevo">${t}</span>`).join(' ') : '';
+            (data.jogos||[]).forEach((j, i) => {
+                const nums = this.parseArray(j.numeros).map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ');
+                const trevosArr = this.parseArray(j.trevos);
+                const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span class="ball trevo">${t}</span>`).join(' ') : '';
                 html += `<div class="fechamento-card">
                     <span class="jogo-num">Jogo ${i + 1}</span>
                     <span class="jogo-nums">${nums}${trevos}</span>
@@ -417,7 +433,7 @@ const App = {
                     html += `<div class="melhor-card">
                         <span>Concurso ${m.concurso}</span>
                         <span class="melhor-acertos">${m.acertos} acertos</span>
-                        <span class="melhor-nums">${m.sorteados.map(n => String(n).padStart(2, '0')).join(', ')}</span>
+                        <span class="melhor-nums">${(m.sorteados||[]).map(n => String(n).padStart(2, '0')).join(', ')}</span>
                     </div>`;
                 }
                 html += '</div>';
@@ -443,7 +459,7 @@ const App = {
                 return;
             }
 
-            let html = `<div class="stat-card"><div class="stat-value">${data.total}</div><div class="stat-label">Alertas Encontrados</div></div><div class="alertas-list">`;
+            let html = `<div class="stat-card" style="margin-bottom:16px"><div class="stat-value">${data.total}</div><div class="stat-label">Alertas Encontrados</div></div><div class="alertas-list">`;
             for (const a of data.alertas) {
                 const icon = a.tipo === 'atraso_critico' ? '⏰' : a.tipo === 'score_alto' ? '🔥' : '📊';
                 const cor = a.tipo === 'atraso_critico' ? '#e74c3c' : '#27ae60';
@@ -483,12 +499,8 @@ const App = {
                 method: 'POST',
                 body: JSON.stringify({
                     jogo_slug: this.currentGame,
-                    concurso,
-                    data_sorteio: data,
-                    numeros,
-                    trevos,
-                    premio_principal: premio,
-                    acumulou
+                    concurso, data_sorteio: data, numeros, trevos,
+                    premio_principal: premio, acumulou
                 })
             });
             this.showNotification(`Concurso ${concurso} inserido com sucesso!`, 'success');
@@ -499,7 +511,17 @@ const App = {
     },
 
     // ========================================
-    // IMPORTAR HISTÓRICO VIA PROXY (NOVO!)
+    // IMPORTAR JOGO INDIVIDUAL
+    // ========================================
+    async importarJogoIndividual() {
+        const jogo = document.getElementById('import-jogo-select')?.value || this.currentGame;
+        const desdeAno = parseInt(document.getElementById('import-desde')?.value || '2022');
+        await this.importarUmJogo(jogo, desdeAno, document.getElementById('import-status'));
+        this.loadDashboard();
+    },
+
+    // ========================================
+    // IMPORTAR HISTÓRICO VIA PROXY
     // ========================================
     async importarHistoricoProxy() {
         const btn = document.getElementById('btn-importar-todos');
@@ -512,14 +534,31 @@ const App = {
         btn.textContent = 'Importando...';
 
         const jogos = ['mega-sena', 'lotofacil', 'lotomania', 'mais-milionaria'];
+        let totalGeral = 0;
+        let resultadoHtml = '';
+
+        for (const jogo of jogos) {
+            const resultado = await this.importarUmJogo(jogo, desdeAno, statusEl, resultadoHtml);
+            resultadoHtml = resultado.html;
+            totalGeral += resultado.inseridos;
+        }
+
+        resultadoHtml += `<div class="import-total">📊 Total importado: ${totalGeral} concursos</div>`;
+        if (statusEl) statusEl.innerHTML = resultadoHtml;
+
+        btn.disabled = false;
+        btn.textContent = 'Importar Todos os Jogos';
+        this.showNotification(`Importação concluída! ${totalGeral} concursos importados.`, 'success');
+        this.loadDashboard();
+    },
+
+    async importarUmJogo(jogo, desdeAno, statusEl, prevHtml = '') {
         const apiNomes = {
             'mega-sena': 'megasena',
             'lotofacil': 'lotofacil',
             'lotomania': 'lotomania',
             'mais-milionaria': 'maismilionaria'
         };
-
-        // Estimativas de concurso inicial por ano
         const estimativas = {
             'mega-sena':       { 2018: 2000, 2019: 2100, 2020: 2200, 2021: 2330, 2022: 2460, 2023: 2600, 2024: 2750, 2025: 2880 },
             'lotofacil':       { 2018: 1600, 2019: 1700, 2020: 1900, 2021: 2100, 2022: 2400, 2023: 2700, 2024: 3100, 2025: 3400 },
@@ -528,127 +567,114 @@ const App = {
         };
 
         const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
-        let totalGeral = 0;
-        let resultadoHtml = '';
+        const apiNome = apiNomes[jogo];
+        let resultadoHtml = prevHtml;
+        let inseridos = 0;
 
-        const updateStatus = (msg) => {
-            if (statusEl) statusEl.innerHTML = msg;
-        };
+        const updateStatus = (msg) => { if (statusEl) statusEl.innerHTML = msg; };
 
-        for (const jogo of jogos) {
-            const apiNome = apiNomes[jogo];
-            updateStatus(`🔄 Buscando último concurso de ${jogo}...`);
+        try {
+            updateStatus(resultadoHtml + `<div class="import-item">🔄 ${jogo}: buscando último concurso...</div>`);
 
+            const respUltimo = await fetch(`${caixaBase}/${apiNome}`);
+            if (!respUltimo.ok) {
+                resultadoHtml += `<div class="import-item">⚠️ ${jogo}: API da Caixa retornou ${respUltimo.status}</div>`;
+                return { html: resultadoHtml, inseridos: 0 };
+            }
+            const dataUltimo = await respUltimo.json();
+            const ultimoCaixa = dataUltimo.numero;
+
+            let ultimoDB = 0;
             try {
-                // 1. Buscar último concurso da Caixa
-                const respUltimo = await fetch(`${caixaBase}/${apiNome}`);
-                if (!respUltimo.ok) {
-                    resultadoHtml += `<div class="import-item">⚠️ ${jogo}: API da Caixa retornou ${respUltimo.status}</div>`;
-                    continue;
-                }
-                const dataUltimo = await respUltimo.json();
-                const ultimoCaixa = dataUltimo.numero;
+                const respDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`);
+                ultimoDB = respDB.ultimo?.concurso || 0;
+            } catch (e) { ultimoDB = 0; }
 
-                // 2. Buscar último concurso já no banco
-                let ultimoDB = 0;
+            const estJogo = estimativas[jogo] || {};
+            const desdeConc = estJogo[desdeAno] || 1;
+            const inicio = Math.max(desdeConc, ultimoDB + 1);
+
+            if (inicio > ultimoCaixa) {
+                resultadoHtml += `<div class="import-item">✅ ${jogo}: já atualizado (concurso ${ultimoDB})</div>`;
+                updateStatus(resultadoHtml);
+                return { html: resultadoHtml, inseridos: 0 };
+            }
+
+            const totalConc = ultimoCaixa - inicio + 1;
+            updateStatus(resultadoHtml + `<div class="import-item">🔄 ${jogo}: importando ${totalConc} concursos (${inicio} → ${ultimoCaixa})...</div>`);
+
+            let batch = [];
+            let erros = 0;
+
+            for (let num = inicio; num <= ultimoCaixa; num++) {
                 try {
-                    const respDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`);
-                    ultimoDB = respDB.ultimo?.concurso || 0;
-                } catch (e) {
-                    ultimoDB = 0;
-                }
+                    const resp = await fetch(`${caixaBase}/${apiNome}/${num}`);
+                    if (!resp.ok) { erros++; continue; }
+                    const d = await resp.json();
 
-                // 3. Calcular range
-                const estJogo = estimativas[jogo] || {};
-                const desdeConc = estJogo[desdeAno] || 1;
-                const inicio = Math.max(desdeConc, ultimoDB + 1);
+                    const numeros = (d.listaDezenas || []).map(n => parseInt(n, 10));
+                    const trevos = (d.trevosSorteados || []).map(n => parseInt(n, 10));
+                    const premio = d.listaRateioPremio?.[0]?.valorPremio || 0;
 
-                if (inicio > ultimoCaixa) {
-                    resultadoHtml += `<div class="import-item">✅ ${jogo}: já atualizado (concurso ${ultimoDB})</div>`;
-                    updateStatus(resultadoHtml);
-                    continue;
-                }
+                    batch.push({
+                        concurso: d.numero || num,
+                        data_sorteio: d.dataApuracao || '',
+                        numeros: numeros,
+                        trevos: trevos,
+                        premio_principal: premio,
+                        acumulou: d.acumulado || false
+                    });
 
-                const totalConc = ultimoCaixa - inicio + 1;
-                updateStatus(resultadoHtml + `<div class="import-item">🔄 ${jogo}: importando ${totalConc} concursos (${inicio} → ${ultimoCaixa})...</div>`);
-
-                // 4. Buscar concursos em lotes
-                let batch = [];
-                let inseridos = 0;
-                let erros = 0;
-
-                for (let num = inicio; num <= ultimoCaixa; num++) {
-                    try {
-                        const resp = await fetch(`${caixaBase}/${apiNome}/${num}`);
-                        if (!resp.ok) { erros++; continue; }
-                        const d = await resp.json();
-
-                        const numeros = (d.listaDezenas || []).map(Number);
-                        const trevos = (d.trevosSorteados || []).map(Number);
-                        const premio = d.listaRateioPremio?.[0]?.valorPremio || 0;
-
-                        batch.push({
-                            concurso: num,
-                            data_sorteio: d.dataApuracao || '',
-                            numeros: numeros,
-                            trevos: trevos,
-                            premio_principal: premio,
-                            acumulou: d.acumulado || false
-                        });
-
-                        // Enviar batch de 30
-                        if (batch.length >= 30) {
+                    if (batch.length >= 30) {
+                        try {
                             await this.apiRequest('/api/importar-proxy', {
                                 method: 'POST',
                                 body: JSON.stringify({ jogo_slug: jogo, resultados: batch })
                             });
                             inseridos += batch.length;
-                            batch = [];
-                            updateStatus(resultadoHtml + `<div class="import-item">🔄 ${jogo}: ${inseridos}/${totalConc} importados...</div>`);
+                        } catch (e) {
+                            erros += batch.length;
+                            console.error(`Erro batch ${jogo}:`, e);
                         }
-
-                        // Rate limit - 100ms entre requisições
-                        await new Promise(r => setTimeout(r, 100));
-
-                    } catch (e) {
-                        erros++;
+                        batch = [];
+                        updateStatus(resultadoHtml + `<div class="import-item">🔄 ${jogo}: ${inseridos}/${totalConc} importados...</div>`);
                     }
-                }
 
-                // Enviar batch restante
-                if (batch.length > 0) {
-                    try {
-                        await this.apiRequest('/api/importar-proxy', {
-                            method: 'POST',
-                            body: JSON.stringify({ jogo_slug: jogo, resultados: batch })
-                        });
-                        inseridos += batch.length;
-                    } catch (e) {
-                        erros += batch.length;
+                    // Delay entre requests para não sobrecarregar
+                    if (num % 5 === 0) {
+                        await new Promise(r => setTimeout(r, 150));
                     }
+                } catch (e) {
+                    erros++;
                 }
-
-                totalGeral += inseridos;
-                resultadoHtml += `<div class="import-item">✅ ${jogo}: ${inseridos} concursos importados${erros > 0 ? ` (${erros} erros)` : ''}</div>`;
-                updateStatus(resultadoHtml);
-
-            } catch (err) {
-                resultadoHtml += `<div class="import-item">❌ ${jogo}: ${err.message}</div>`;
-                updateStatus(resultadoHtml);
             }
+
+            // Batch restante
+            if (batch.length > 0) {
+                try {
+                    await this.apiRequest('/api/importar-proxy', {
+                        method: 'POST',
+                        body: JSON.stringify({ jogo_slug: jogo, resultados: batch })
+                    });
+                    inseridos += batch.length;
+                } catch (e) {
+                    erros += batch.length;
+                }
+            }
+
+            resultadoHtml += `<div class="import-item">✅ ${jogo}: ${inseridos} concursos importados${erros > 0 ? ` (${erros} erros)` : ''}</div>`;
+            updateStatus(resultadoHtml);
+
+        } catch (err) {
+            resultadoHtml += `<div class="import-item">❌ ${jogo}: ${err.message}</div>`;
+            updateStatus(resultadoHtml);
         }
 
-        resultadoHtml += `<div class="import-total">📊 Total importado: ${totalGeral} concursos</div>`;
-        updateStatus(resultadoHtml);
-
-        btn.disabled = false;
-        btn.textContent = 'Importar Todos os Jogos';
-        this.showNotification(`Importação concluída! ${totalGeral} concursos importados.`, 'success');
-        this.loadDashboard();
+        return { html: resultadoHtml, inseridos };
     },
 
     // ========================================
-    // FORÇAR ATUALIZAÇÃO
+    // FORÇAR ATUALIZAÇÃO (via proxy)
     // ========================================
     async forcarAtualizacao() {
         const btn = document.getElementById('btn-atualizar');
@@ -657,37 +683,14 @@ const App = {
         btn.disabled = true;
         btn.textContent = 'Atualizando...';
 
-        // Tenta via backend primeiro, se der 403, faz via proxy
-        try {
-            const data = await this.apiRequest('/api/atualizar', { method: 'POST' });
-            const algumBloqueado = data.resultados?.some(r => r.status === 'api_bloqueada_403');
-
-            if (algumBloqueado) {
-                // Fallback: atualizar via proxy pelo navegador
-                if (statusEl) statusEl.innerHTML = '🔄 Backend bloqueado pela Caixa. Atualizando via navegador...';
-                await this.atualizarViaProxy();
-            } else {
-                let html = '';
-                for (const r of (data.resultados || [])) {
-                    const icon = r.status === 'atualizado' ? '✅' : r.status === 'ja_atualizado' ? '➡️' : '⚠️';
-                    html += `<div class="import-item">${icon} ${r.jogo}: ${r.status}${r.concurso ? ` (concurso ${r.concurso})` : ''}</div>`;
-                }
-                if (statusEl) statusEl.innerHTML = html;
-                this.showNotification('Atualização concluída!', 'success');
-            }
-        } catch (err) {
-            // Fallback: proxy
-            if (statusEl) statusEl.innerHTML = '🔄 Tentando via navegador...';
-            await this.atualizarViaProxy();
-        }
+        await this.atualizarViaProxy(statusEl);
 
         btn.disabled = false;
         btn.textContent = 'Forçar Atualização';
         this.loadDashboard();
     },
 
-    async atualizarViaProxy() {
-        const statusEl = document.getElementById('update-status');
+    async atualizarViaProxy(statusEl) {
         const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
         const apiNomes = {
             'mega-sena': 'megasena',
@@ -702,6 +705,7 @@ const App = {
                 if (!resp.ok) { html += `<div class="import-item">⚠️ ${jogo}: erro ${resp.status}</div>`; continue; }
                 const d = await resp.json();
                 const concurso = d.numero;
+
                 let ultimoDB = 0;
                 try {
                     const rDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`);
@@ -711,8 +715,8 @@ const App = {
                 if (concurso <= ultimoDB) {
                     html += `<div class="import-item">➡️ ${jogo}: já atualizado (${ultimoDB})</div>`;
                 } else {
-                    const numeros = (d.listaDezenas || []).map(Number);
-                    const trevos = (d.trevosSorteados || []).map(Number);
+                    const numeros = (d.listaDezenas || []).map(n => parseInt(n, 10));
+                    const trevos = (d.trevosSorteados || []).map(n => parseInt(n, 10));
                     const premio = d.listaRateioPremio?.[0]?.valorPremio || 0;
                     await this.apiRequest('/api/importar-proxy', {
                         method: 'POST',
@@ -732,7 +736,7 @@ const App = {
             }
         }
         if (statusEl) statusEl.innerHTML = html;
-        this.showNotification('Atualização via proxy concluída!', 'success');
+        this.showNotification('Atualização concluída!', 'success');
     },
 
     // ========================================
@@ -755,9 +759,6 @@ const App = {
     }
 };
 
-// ========================================
-// INIT
-// ========================================
 document.addEventListener('DOMContentLoaded', function () {
     App.init();
 });
