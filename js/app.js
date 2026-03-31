@@ -1,918 +1,763 @@
-/**
- * ╔══════════════════════════════════════════════════════╗
- * ║  LotoQuant — Aplicação Principal (app.js)           ║
- * ║  Controla navegação, interações e renderização       ║
- * ╚══════════════════════════════════════════════════════╝
- */
+// ============================================================
+// js/app.js - LotoQuant Frontend v2.0 (Proxy Import Fix)
+// ============================================================
 
 const App = {
-    currentJogo: 'mega-sena',
     currentPage: 'dashboard',
+    currentGame: 'mega-sena',
+    config: {
+        backendUrl: localStorage.getItem('lotoquant_backend_url') || '',
+        apiKey: localStorage.getItem('lotoquant_api_key') || ''
+    },
+    jogosConfig: {
+        'mega-sena': { nome: 'Mega-Sena', min: 1, max: 60, escolha: 6, apiNome: 'megasena', trevos: false },
+        'lotofacil': { nome: 'Lotofácil', min: 1, max: 25, escolha: 15, apiNome: 'lotofacil', trevos: false },
+        'lotomania': { nome: 'Lotomania', min: 0, max: 99, escolha: 50, apiNome: 'lotomania', trevos: false },
+        'mais-milionaria': { nome: '+Milionária', min: 1, max: 50, escolha: 6, apiNome: 'maismilionaria', trevos: true, trevosMin: 1, trevosMax: 6, trevosEscolha: 2 }
+    },
 
-    // ==========================================
-    // INICIALIZAÇÃO
-    // ==========================================
+    // ========================================
+    // INIT
+    // ========================================
     init() {
         this.setupNavigation();
-        this.setupJogoSelector();
+        this.setupGameSelector();
         this.setupButtons();
         this.setupConfig();
-        this.setupMobileMenu();
-        this.loadDashboard();
-        console.log('🎯 LotoQuant inicializado');
-    },
-
-    // ==========================================
-    // MENU MOBILE
-    // ==========================================
-    setupMobileMenu() {
-        const btn = document.getElementById('mobile-menu-btn');
-        const sidebar = document.getElementById('sidebar');
-        if (btn && sidebar) {
-            btn.addEventListener('click', function() {
-                sidebar.classList.toggle('open');
-            });
-            document.querySelectorAll('.nav-item').forEach(function(item) {
-                item.addEventListener('click', function() {
-                    sidebar.classList.remove('open');
-                });
-            });
+        this.showPage('dashboard');
+        if (this.config.backendUrl) {
+            this.loadDashboard();
         }
     },
 
-    // ==========================================
-    // NAVEGAÇÃO
-    // ==========================================
+    // ========================================
+    // NAVIGATION
+    // ========================================
     setupNavigation() {
-        var self = this;
-        document.querySelectorAll('.nav-item').forEach(function(item) {
-            item.addEventListener('click', function() {
-                var page = item.dataset.page;
-                self.navigateTo(page);
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.getAttribute('data-page');
+                this.showPage(page);
             });
         });
     },
 
-    navigateTo(page) {
-        document.querySelectorAll('.nav-item').forEach(function(i) {
-            i.classList.remove('active');
-        });
-        var activeNav = document.querySelector('.nav-item[data-page="' + page + '"]');
-        if (activeNav) activeNav.classList.add('active');
-
-        document.querySelectorAll('.page').forEach(function(p) {
-            p.classList.remove('active');
-        });
-        var activePage = document.getElementById('page-' + page);
-        if (activePage) activePage.classList.add('active');
-
+    showPage(page) {
         this.currentPage = page;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+        document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(`page-${page}`)?.classList.add('active');
     },
 
-    // ==========================================
-    // SELETOR DE JOGO
-    // ==========================================
-    setupJogoSelector() {
-        var self = this;
-        var selector = document.getElementById('jogo-selector');
-        if (!selector) return;
-
-        selector.addEventListener('change', function() {
-            self.currentJogo = selector.value;
-
-            var tag = document.getElementById('dash-jogo-nome');
-            if (tag) tag.textContent = Utils.jogosNomes[self.currentJogo] || self.currentJogo;
-
-            var trevosGroup = document.getElementById('trevos-group');
-            var trevosValGroup = document.getElementById('trevos-val-group');
-
-            if (self.currentJogo === 'mais-milionaria') {
-                if (trevosGroup) trevosGroup.classList.remove('hidden');
-                if (trevosValGroup) trevosValGroup.classList.remove('hidden');
-            } else {
-                if (trevosGroup) trevosGroup.classList.add('hidden');
-                if (trevosValGroup) trevosValGroup.classList.add('hidden');
-            }
-
-            if (self.currentPage === 'dashboard') {
-                self.loadDashboard();
-            }
-        });
-    },
-
-    // ==========================================
-    // SETUP DE TODOS OS BOTÕES
-    // ==========================================
-    setupButtons() {
-        var self = this;
-
-        // Análise
-        var btnAnalisar = document.getElementById('btn-analisar');
-        if (btnAnalisar) {
-            btnAnalisar.addEventListener('click', function() {
-                self.executarAnalise();
-            });
-        }
-
-        // Previsões
-        var btnPrever = document.getElementById('btn-prever');
-        if (btnPrever) {
-            btnPrever.addEventListener('click', function() {
-                var qtd = parseInt(document.getElementById('num-cartelas').value) || 3;
-                self.gerarPrevisoes(qtd);
-            });
-        }
-
-        // Validar
-        var btnValidar = document.getElementById('btn-validar');
-        if (btnValidar) {
-            btnValidar.addEventListener('click', function() {
-                self.validarJogo();
-            });
-        }
-
-        // Fechamento
-        var btnFechamento = document.getElementById('btn-fechamento');
-        if (btnFechamento) {
-            btnFechamento.addEventListener('click', function() {
-                self.gerarFechamento();
-            });
-        }
-
-        // Backtesting
-        var btnBacktest = document.getElementById('btn-backtest');
-        if (btnBacktest) {
-            btnBacktest.addEventListener('click', function() {
-                self.executarBacktest();
-            });
-        }
-
-        // Alertas
-        var btnAlertas = document.getElementById('btn-verificar-alertas');
-        if (btnAlertas) {
-            btnAlertas.addEventListener('click', function() {
-                self.verificarAlertas();
-            });
-        }
-
-        // Inserir resultado
-        var btnInserir = document.getElementById('btn-inserir');
-        if (btnInserir) {
-            btnInserir.addEventListener('click', function() {
-                self.inserirResultado();
-            });
-        }
-
-        // Forçar atualização
-        var btnUpdate = document.getElementById('btn-forcar-update');
-        if (btnUpdate) {
-            btnUpdate.addEventListener('click', function() {
-                self.forcarAtualizacao();
-            });
-        }
-
-        // Importar histórico
-        var btnImportar = document.getElementById('btn-importar-todos');
-        if (btnImportar) {
-            btnImportar.addEventListener('click', function() {
-                self.importarHistorico();
+    // ========================================
+    // GAME SELECTOR
+    // ========================================
+    setupGameSelector() {
+        const selector = document.getElementById('game-selector');
+        if (selector) {
+            selector.addEventListener('change', (e) => {
+                this.currentGame = e.target.value;
+                if (this.config.backendUrl) {
+                    this.loadDashboard();
+                }
             });
         }
     },
 
-    // ==========================================
-    // CONFIGURAÇÃO (Backend URL + API Key)
-    // ==========================================
+    // ========================================
+    // CONFIG
+    // ========================================
     setupConfig() {
-        var urlInput = document.getElementById('backend-url-input');
-        var keyInput = document.getElementById('api-key-input');
+        const urlInput = document.getElementById('config-backend-url');
+        const keyInput = document.getElementById('config-api-key');
+        const saveBtn = document.getElementById('btn-save-config');
 
-        if (urlInput) urlInput.value = API.baseUrl || '';
+        if (urlInput) urlInput.value = this.config.backendUrl;
+        if (keyInput) keyInput.value = this.config.apiKey;
 
-        var self = this;
-
-        var btnSaveUrl = document.getElementById('btn-save-url');
-        if (btnSaveUrl) {
-            btnSaveUrl.addEventListener('click', function() {
-                if (urlInput) {
-                    API.setBaseUrl(urlInput.value.trim());
-                    Utils.showFeedback('config-feedback', '✅ URL do backend salva!', 'success');
-                    self.loadDashboard();
-                }
-            });
-        }
-
-        var btnSaveKey = document.getElementById('btn-save-key');
-        if (btnSaveKey) {
-            btnSaveKey.addEventListener('click', function() {
-                if (keyInput) {
-                    API.setApiKey(keyInput.value.trim());
-                    Utils.showFeedback('config-feedback', '✅ API Key salva!', 'success');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                const url = document.getElementById('config-backend-url')?.value?.trim().replace(/\/+$/, '');
+                const key = document.getElementById('config-api-key')?.value?.trim();
+                if (url) {
+                    this.config.backendUrl = url;
+                    this.config.apiKey = key || '';
+                    localStorage.setItem('lotoquant_backend_url', url);
+                    localStorage.setItem('lotoquant_api_key', key || '');
+                    this.showNotification('Configuração salva com sucesso!', 'success');
+                    this.loadDashboard();
+                } else {
+                    this.showNotification('Preencha a URL do backend', 'error');
                 }
             });
         }
     },
 
-    // ==========================================
+    // ========================================
+    // BUTTONS
+    // ========================================
+    setupButtons() {
+        document.getElementById('btn-analise')?.addEventListener('click', () => this.executarAnalise());
+        document.getElementById('btn-previsoes')?.addEventListener('click', () => this.gerarPrevisoes());
+        document.getElementById('btn-validar')?.addEventListener('click', () => this.validarJogo());
+        document.getElementById('btn-fechamento')?.addEventListener('click', () => this.gerarFechamento());
+        document.getElementById('btn-backtest')?.addEventListener('click', () => this.executarBacktest());
+        document.getElementById('btn-alertas')?.addEventListener('click', () => this.verificarAlertas());
+        document.getElementById('btn-inserir')?.addEventListener('click', () => this.inserirResultado());
+        document.getElementById('btn-importar-todos')?.addEventListener('click', () => this.importarHistoricoProxy());
+        document.getElementById('btn-atualizar')?.addEventListener('click', () => this.forcarAtualizacao());
+    },
+
+    // ========================================
+    // API REQUEST
+    // ========================================
+    async apiRequest(endpoint, options = {}) {
+        if (!this.config.backendUrl) {
+            this.showNotification('Configure a URL do backend primeiro!', 'error');
+            throw new Error('Backend URL não configurada');
+        }
+        const url = this.config.backendUrl + endpoint;
+        const headers = { 'Content-Type': 'application/json' };
+        if (this.config.apiKey) {
+            headers['x-api-key'] = this.config.apiKey;
+        }
+        const resp = await fetch(url, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            throw new Error(err.detail || `Erro ${resp.status}`);
+        }
+        return resp.json();
+    },
+
+    // ========================================
     // DASHBOARD
-    // ==========================================
+    // ========================================
     async loadDashboard() {
+        const container = document.getElementById('dashboard-content');
+        if (!container) return;
         try {
-            var data = await API.getResultados(this.currentJogo, 10);
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando dashboard...</p></div>';
+            const data = await this.apiRequest(`/api/resultados/?jogo_slug=${this.currentGame}&limit=10`);
+
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.total || 0}</div>
+                        <div class="stat-label">Total de Concursos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.resultados?.[0]?.concurso || '-'}</div>
+                        <div class="stat-label">Último Concurso</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.resultados?.[0]?.data_sorteio || '-'}</div>
+                        <div class="stat-label">Data do Último Sorteio</div>
+                    </div>
+                </div>
+                <h3>Últimos 10 Resultados</h3>`;
 
             if (data.resultados && data.resultados.length > 0) {
-                var primeiro = data.resultados[0];
-                document.getElementById('stat-total-concursos').textContent =
-                    primeiro.concurso.toLocaleString('pt-BR');
-                document.getElementById('stat-ultimo-concurso').textContent =
-                    '#' + primeiro.concurso;
-                document.getElementById('stat-ultimo-data').textContent =
-                    Utils.formatDate(primeiro.data_sorteio);
-                document.getElementById('stat-proximo').textContent =
-                    '#' + (primeiro.concurso + 1);
-
-                this.renderResultados(data.resultados);
+                html += '<div class="results-table"><table><thead><tr><th>Concurso</th><th>Data</th><th>Números</th><th>Prêmio</th></tr></thead><tbody>';
+                for (const r of data.resultados) {
+                    const nums = (Array.isArray(r.numeros) ? r.numeros : JSON.parse(r.numeros || '[]'))
+                        .map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ');
+                    const trevos = r.trevos && r.trevos.length > 0
+                        ? ' + ' + r.trevos.map(t => `<span class="ball trevo">${t}</span>`).join(' ')
+                        : '';
+                    const premio = r.premio_principal ? `R$ ${Number(r.premio_principal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-';
+                    html += `<tr><td>${r.concurso}</td><td>${r.data_sorteio || '-'}</td><td>${nums}${trevos}</td><td>${premio}</td></tr>`;
+                }
+                html += '</tbody></table></div>';
             } else {
-                document.getElementById('ultimos-resultados').innerHTML =
-                    '<p class="text-muted">Nenhum resultado encontrado. Vá em "Inserir Dados" e importe o histórico.</p>';
+                html += '<div class="empty-state"><p>⚠️ Nenhum resultado encontrado. Importe os dados históricos na aba "Inserir Dados".</p></div>';
             }
-
-            // Tentar carregar ranking se modelo já treinado
-            try {
-                var ranking = await API.getRanking(this.currentJogo);
-                if (ranking.ranking && ranking.ranking.length > 0) {
-                    Charts.renderFrequencia('chart-frequencia', ranking.ranking);
-
-                    var top10freq = ranking.ranking.slice(0, 10).map(function(r) {
-                        return { numero: r.numero, value: r.score_total };
-                    });
-                    Charts.renderTop10('chart-top10', top10freq, 'Score', 'rgba(239, 68, 68, 0.7)');
-
-                    var rankingCopy = ranking.ranking.slice();
-                    rankingCopy.sort(function(a, b) {
-                        return b.scores.atraso - a.scores.atraso;
-                    });
-                    var byAtraso = rankingCopy.slice(0, 10).map(function(r) {
-                        return { numero: r.numero, value: r.scores.atraso };
-                    });
-                    Charts.renderTop10('chart-atrasados', byAtraso, 'Score Atraso', 'rgba(59, 130, 246, 0.7)');
-                }
-            } catch (e) {
-                console.log('Ranking não disponível (modelo não treinado ainda)');
-            }
-
-        } catch (error) {
-            console.warn('Dashboard:', error.message);
-            if (error.message.includes('não configurada') || error.message.includes('Backend URL')) {
-                document.getElementById('ultimos-resultados').innerHTML =
-                    '<p class="text-muted">⚠️ Configure a URL do backend em "Inserir Dados" para começar.</p>';
-            }
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="error-state"><p>❌ Erro ao carregar dashboard: ${err.message}</p><p>Verifique a configuração do backend na aba "Inserir Dados".</p></div>`;
         }
     },
 
-    renderResultados(resultados) {
-        var container = document.getElementById('ultimos-resultados');
-        if (!container) return;
-
-        if (!resultados || resultados.length === 0) {
-            container.innerHTML = '<p class="text-muted">Nenhum resultado encontrado.</p>';
-            return;
-        }
-
-        var html = '';
-        for (var i = 0; i < resultados.length; i++) {
-            var r = resultados[i];
-            var numerosHtml = '';
-            for (var j = 0; j < r.numeros.length; j++) {
-                numerosHtml += Utils.createBall(r.numeros[j]);
-            }
-            if (r.trevos && r.trevos.length > 0) {
-                for (var t = 0; t < r.trevos.length; t++) {
-                    numerosHtml += Utils.createBall(r.trevos[t], 'trevo');
-                }
-            }
-            html += '<div class="resultado-item">' +
-                '<span class="resultado-concurso">#' + r.concurso + '</span>' +
-                '<span class="resultado-data">' + Utils.formatDate(r.data_sorteio) + '</span>' +
-                '<div class="resultado-numeros">' + numerosHtml + '</div>' +
-                '</div>';
-        }
-        container.innerHTML = html;
-    },
-
-    // ==========================================
-    // ANÁLISE COMPLETA
-    // ==========================================
+    // ========================================
+    // ANÁLISE IA
+    // ========================================
     async executarAnalise() {
-        var btn = document.getElementById('btn-analisar');
-        if (btn) btn.disabled = true;
-        Utils.showLoading('analise-loading');
-        Utils.hideElement('analise-resultado');
-
+        const container = document.getElementById('analise-content');
+        if (!container) return;
         try {
-            var data = await API.getAnaliseCompleta(this.currentJogo);
-            this.renderAnalise(data);
-            Utils.showElement('analise-resultado');
-        } catch (error) {
-            alert('Erro na análise: ' + error.message);
-        } finally {
-            Utils.hideLoading('analise-loading');
-            if (btn) btn.disabled = false;
-        }
-    },
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Executando análise com 6 modelos de IA...</p></div>';
+            const data = await this.apiRequest(`/api/analises/completa?jogo_slug=${this.currentGame}`);
 
-    renderAnalise(data) {
-        var analise = data.analise;
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value">${data.total_concursos}</div><div class="stat-label">Concursos Analisados</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.ultimo_concurso}</div><div class="stat-label">Último Concurso</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.modelos_usados?.length || 6}</div><div class="stat-label">Modelos de IA</div></div>
+                </div>
+                <h3>🔥 Top 15 Números Quentes</h3>
+                <div class="numbers-grid">`;
 
-        // Ranking grid
-        var rankingGrid = document.getElementById('ranking-grid');
-        if (rankingGrid && analise.ranking_top20) {
-            var maxScore = analise.ranking_top20[0] ? analise.ranking_top20[0].score_total : 1;
-            var html = '';
-            for (var i = 0; i < analise.ranking_top20.length; i++) {
-                var r = analise.ranking_top20[i];
-                var cls = Utils.getBallClass(r.score_total, maxScore);
-                html += '<div class="numero-ball ' + cls + '" title="Posição #' + (i + 1) +
-                    ' | Score: ' + r.score_total.toFixed(1) + '">' +
-                    String(r.numero).padStart(2, '0') +
-                    '<span class="score-tag">' + r.score_total.toFixed(0) + '</span>' +
-                    '</div>';
+            for (const n of (data.top_quentes || [])) {
+                const cor = n.classificacao === 'quente' ? '#e74c3c' : n.classificacao === 'morno' ? '#f39c12' : '#3498db';
+                html += `<div class="number-card" style="border-color:${cor}">
+                    <div class="number">${String(n.numero).padStart(2, '0')}</div>
+                    <div class="score" style="color:${cor}">${(n.score * 100).toFixed(1)}%</div>
+                    <div class="class-label">${n.classificacao}</div>
+                    <div class="details">Freq: ${(n.frequencia_recente * 100).toFixed(1)}% | Atraso: ${n.atraso}</div>
+                </div>`;
             }
-            rankingGrid.innerHTML = html;
-        }
+            html += '</div>';
 
-        // Distribuição
-        var distInfo = document.getElementById('distribuicao-info');
-        if (distInfo && analise.perfil_distribuicao) {
-            var p = analise.perfil_distribuicao;
-            distInfo.innerHTML =
-                '<div class="info-grid">' +
-                '<div class="info-item"><span class="info-label">Soma Média</span><span class="info-value">' + (p.soma_media ? p.soma_media.toFixed(0) : '-') + '</span></div>' +
-                '<div class="info-item"><span class="info-label">Soma Min/Max</span><span class="info-value">' + (p.soma_min || '-') + ' / ' + (p.soma_max || '-') + '</span></div>' +
-                '<div class="info-item"><span class="info-label">Pares (média)</span><span class="info-value">' + (p.pares_media ? p.pares_media.toFixed(1) : '-') + '</span></div>' +
-                '<div class="info-item"><span class="info-label">Ímpares (média)</span><span class="info-value">' + (p.impares_media ? p.impares_media.toFixed(1) : '-') + '</span></div>' +
-                '</div>';
-        }
-
-        // Universo reduzido
-        var universoInfo = document.getElementById('universo-info');
-        if (universoInfo && analise.universo_reduzido) {
-            var u = analise.universo_reduzido;
-            var ballsHtml = '';
-            for (var k = 0; k < u.universo_reduzido.length; k++) {
-                ballsHtml += Utils.createBall(u.universo_reduzido[k]);
+            html += '<h3>❄️ Top 10 Números Frios</h3><div class="numbers-grid">';
+            for (const n of (data.top_frios || [])) {
+                html += `<div class="number-card" style="border-color:#3498db">
+                    <div class="number">${String(n.numero).padStart(2, '0')}</div>
+                    <div class="score" style="color:#3498db">${(n.score * 100).toFixed(1)}%</div>
+                    <div class="class-label">${n.classificacao}</div>
+                </div>`;
             }
-            universoInfo.innerHTML =
-                '<p class="info-text">Universo reduzido de <strong>' + u.total_original +
-                '</strong> para <strong>' + u.total_reduzido +
-                '</strong> números (redução de <strong>' + u.reducao_percentual + '%</strong>)</p>' +
-                '<div class="resultado-numeros" style="margin-top:12px;">' + ballsHtml + '</div>';
-        }
+            html += '</div>';
 
-        // Pares
-        var paresList = document.getElementById('pares-list');
-        if (paresList && analise.melhores_pares) {
-            var paresHtml = '<div class="pares-grid">';
-            var maxPares = Math.min(analise.melhores_pares.length, 15);
-            for (var m = 0; m < maxPares; m++) {
-                var par = analise.melhores_pares[m];
-                paresHtml += '<div class="par-item">' +
-                    '<span class="par-nums">' + String(par.par[0]).padStart(2, '0') + ' — ' + String(par.par[1]).padStart(2, '0') + '</span>' +
-                    '<span class="par-freq">' + par.frequencia + 'x</span>' +
-                    '</div>';
-            }
-            paresHtml += '</div>';
-            paresList.innerHTML = paresHtml;
-        }
-
-        // Atrasados
-        var atrasadosList = document.getElementById('atrasados-list');
-        if (atrasadosList && analise.atrasados_criticos) {
-            if (analise.atrasados_criticos.length === 0) {
-                atrasadosList.innerHTML = '<p class="text-muted">Nenhum número com atraso crítico no momento.</p>';
-            } else {
-                var atHtml = '';
-                for (var a = 0; a < analise.atrasados_criticos.length; a++) {
-                    var at = analise.atrasados_criticos[a];
-                    atHtml += '<div class="alerta-card severidade-2">' +
-                        '<div class="alerta-titulo">Número ' + String(at.numero).padStart(2, '0') + '</div>' +
-                        '<div class="alerta-descricao">Atraso: <strong>' + at.atraso +
-                        '</strong> concursos | Esperado: ' + at.atraso_esperado +
-                        ' | Ratio: <strong>' + at.ratio + 'x</strong> acima do esperado</div></div>';
+            if (data.pares_frequentes) {
+                html += '<h3>👯 Pares Mais Frequentes</h3><div class="pairs-grid">';
+                const pares = Object.entries(data.pares_frequentes).slice(0, 15);
+                for (const [par, freq] of pares) {
+                    html += `<div class="pair-card"><span class="pair">${par}</span><span class="freq">${freq}x</span></div>`;
                 }
-                atrasadosList.innerHTML = atHtml;
+                html += '</div>';
             }
+
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="error-state"><p>❌ ${err.message}</p></div>`;
         }
     },
 
-    // ==========================================
+    // ========================================
     // PREVISÕES
-    // ==========================================
-    async gerarPrevisoes(quantidade) {
-        var btn = document.getElementById('btn-prever');
-        if (btn) btn.disabled = true;
-        Utils.showLoading('previsoes-loading');
-
+    // ========================================
+    async gerarPrevisoes() {
+        const container = document.getElementById('previsoes-content');
+        if (!container) return;
+        const qtd = parseInt(document.getElementById('qtd-previsoes')?.value || '5');
         try {
-            var data = await API.gerarPrevisoes(this.currentJogo, quantidade);
-            this.renderPrevisoes(data);
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Gerando previsões com ensemble de 6 modelos...</p></div>';
+            const data = await this.apiRequest('/api/previsoes/gerar', {
+                method: 'POST',
+                body: JSON.stringify({ jogo_slug: this.currentGame, quantidade_jogos: qtd })
+            });
 
-            var historico = await API.getHistoricoPrevisoes(this.currentJogo);
-            this.renderHistoricoPrevisoes(historico);
-        } catch (error) {
-            alert('Erro nas previsões: ' + error.message);
-        } finally {
-            Utils.hideLoading('previsoes-loading');
-            if (btn) btn.disabled = false;
+            let html = `<div class="stat-card"><div class="stat-value">${data.total_concursos_analisados}</div><div class="stat-label">Concursos Analisados</div></div>`;
+            html += '<div class="previsoes-list">';
+
+            data.previsoes?.forEach((p, i) => {
+                const nums = p.numeros.map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ');
+                const trevos = p.trevos?.length > 0 ? ' + ' + p.trevos.map(t => `<span class="ball trevo">${t}</span>`).join(' ') : '';
+                const confCor = p.confianca > 70 ? '#27ae60' : p.confianca > 50 ? '#f39c12' : '#e74c3c';
+                html += `<div class="previsao-card">
+                    <div class="previsao-header">
+                        <span class="previsao-num">Jogo ${i + 1}</span>
+                        <span class="previsao-conf" style="color:${confCor}">Confiança: ${p.confianca}%</span>
+                    </div>
+                    <div class="previsao-nums">${nums}${trevos}</div>
+                    <div class="previsao-score">Score: ${p.score}</div>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="error-state"><p>❌ ${err.message}</p></div>`;
         }
     },
 
-    renderPrevisoes(data) {
-        var container = document.getElementById('previsoes-resultado');
-        if (!container) return;
-
-        var jogosHtml = '';
-        for (var i = 0; i < data.jogos_sugeridos.length; i++) {
-            var jogo = data.jogos_sugeridos[i];
-            var numsHtml = '';
-            for (var j = 0; j < jogo.numeros.length; j++) {
-                numsHtml += Utils.createBall(jogo.numeros[j]);
-            }
-            if (jogo.trevos && jogo.trevos.length > 0) {
-                for (var t = 0; t < jogo.trevos.length; t++) {
-                    numsHtml += Utils.createBall(jogo.trevos[t], 'trevo');
-                }
-            }
-
-            var detailsHtml = '';
-            if (jogo.detalhes && jogo.detalhes.scores_individuais) {
-                var keys = Object.keys(jogo.detalhes.scores_individuais);
-                for (var d = 0; d < keys.length; d++) {
-                    var numKey = keys[d];
-                    var sc = jogo.detalhes.scores_individuais[numKey];
-                    detailsHtml += '<span class="detail-chip">' + String(numKey).padStart(2, '0') + ': ' + sc.toFixed(0) + '</span>';
-                }
-            }
-
-            var scoreClass = Utils.getScoreClass(jogo.score_confianca);
-
-            jogosHtml += '<div class="previsao-card">' +
-                '<div class="previsao-header">' +
-                '<span class="previsao-label">Jogo ' + (i + 1) + '</span>' +
-                '<span class="previsao-score ' + scoreClass + '">Score: ' + jogo.score_confianca.toFixed(1) + '</span>' +
-                '</div>' +
-                '<div class="resultado-numeros">' + numsHtml + '</div>' +
-                '<div class="previsao-details">' + detailsHtml + '</div>' +
-                '</div>';
-        }
-
-        container.innerHTML = '<div class="card">' +
-            '<h3>🎯 Jogos Sugeridos para Concurso #' + data.concurso_alvo + '</h3>' +
-            '<p class="info-text">' + data.disclaimer + '</p>' +
-            jogosHtml +
-            '</div>';
-    },
-
-    renderHistoricoPrevisoes(data) {
-        var container = document.getElementById('previsoes-historico');
-        if (!container) return;
-
-        if (!data.previsoes || data.previsoes.length === 0) {
-            container.innerHTML = '<p class="text-muted">Nenhuma previsão anterior.</p>';
-            return;
-        }
-
-        var html = '';
-        var max = Math.min(data.previsoes.length, 5);
-        for (var i = 0; i < max; i++) {
-            var p = data.previsoes[i];
-            var numsHtml = '';
-            for (var j = 0; j < p.numeros_sugeridos.length; j++) {
-                numsHtml += Utils.createBall(p.numeros_sugeridos[j]);
-            }
-            var scoreClass = Utils.getScoreClass(p.score_confianca);
-            html += '<div class="resultado-item">' +
-                '<span class="resultado-concurso">Alvo #' + p.concurso_alvo + '</span>' +
-                '<span class="previsao-score ' + scoreClass + '" style="font-size:13px;">' + p.score_confianca.toFixed(1) + '</span>' +
-                '<div class="resultado-numeros">' + numsHtml + '</div>' +
-                '</div>';
-        }
-        container.innerHTML = html;
-    },
-
-    // ==========================================
-    // VALIDAR JOGO
-    // ==========================================
+    // ========================================
+    // VALIDAÇÃO
+    // ========================================
     async validarJogo() {
-        var btn = document.getElementById('btn-validar');
-        if (btn) btn.disabled = true;
-        Utils.showLoading('validacao-loading');
+        const container = document.getElementById('validacao-content');
+        if (!container) return;
+        const numerosStr = document.getElementById('validar-numeros')?.value || '';
+        const trevosStr = document.getElementById('validar-trevos')?.value || '';
+        const numeros = numerosStr.split(/[,\s]+/).filter(n => n).map(Number);
+        const trevos = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number) : [];
 
-        var numerosStr = document.getElementById('val-numeros') ? document.getElementById('val-numeros').value : '';
-        var trevosStr = document.getElementById('val-trevos') ? document.getElementById('val-trevos').value : '';
-
-        var numeros = numerosStr.split(',').map(function(n) { return parseInt(n.trim()); }).filter(function(n) { return !isNaN(n); });
-        var trevos = [];
-        if (trevosStr && trevosStr.trim()) {
-            trevos = trevosStr.split(',').map(function(n) { return parseInt(n.trim()); }).filter(function(n) { return !isNaN(n); });
-        }
-
-        if (numeros.length === 0) {
-            alert('Insira os números do seu jogo.');
-            if (btn) btn.disabled = false;
-            Utils.hideLoading('validacao-loading');
+        if (numeros.length === 0 || numeros.some(isNaN)) {
+            this.showNotification('Preencha os números corretamente', 'error');
             return;
         }
 
         try {
-            var response = await API.request('/api/validacao/validar-jogo', {
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Validando jogo...</p></div>';
+            const data = await this.apiRequest('/api/validacao/validar-jogo', {
+                method: 'POST',
+                body: JSON.stringify({ jogo_slug: this.currentGame, numeros, trevos })
+            });
+
+            const confCor = data.confianca > 70 ? '#27ae60' : data.confianca > 50 ? '#f39c12' : '#e74c3c';
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" style="color:${confCor}">${data.confianca}%</div><div class="stat-label">Confiança</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.classificacao}</div><div class="stat-label">Classificação</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.distribuicao?.pares}P / ${data.distribuicao?.impares}I</div><div class="stat-label">Par/Ímpar</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.distribuicao?.soma}</div><div class="stat-label">Soma</div></div>
+                </div>
+                <h3>Análise por Número</h3><div class="numbers-grid">`;
+
+            for (const n of (data.numeros_analise || [])) {
+                const cor = n.classificacao === 'quente' ? '#e74c3c' : n.classificacao === 'morno' ? '#f39c12' : '#3498db';
+                html += `<div class="number-card" style="border-color:${cor}">
+                    <div class="number">${String(n.numero).padStart(2, '0')}</div>
+                    <div class="score" style="color:${cor}">${(n.score * 100).toFixed(1)}%</div>
+                    <div class="class-label">${n.classificacao}</div>
+                </div>`;
+            }
+            html += '</div>';
+
+            if (data.sugestoes_melhoria?.length > 0) {
+                html += '<h3>💡 Sugestões de Melhoria</h3><div class="suggestions">';
+                for (const s of data.sugestoes_melhoria) {
+                    html += `<div class="suggestion-card">Trocar <span class="ball cold">${String(s.trocar).padStart(2, '0')}</span> por <span class="ball hot">${String(s.por).padStart(2, '0')}</span> (ganho: +${(s.ganho_score * 100).toFixed(1)}%)</div>`;
+                }
+                html += '</div>';
+            }
+
+            if (data.recomendacoes?.length > 0) {
+                html += '<h3>📋 Recomendações</h3><ul class="recommendations">';
+                for (const r of data.recomendacoes) {
+                    html += `<li>${r}</li>`;
+                }
+                html += '</ul>';
+            }
+
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="error-state"><p>❌ ${err.message}</p></div>`;
+        }
+    },
+
+    // ========================================
+    // FECHAMENTO
+    // ========================================
+    async gerarFechamento() {
+        const container = document.getElementById('fechamento-content');
+        if (!container) return;
+        const garantia = document.getElementById('fechamento-garantia')?.value || 'quadra';
+        const tamanho = parseInt(document.getElementById('fechamento-tamanho')?.value || '18');
+
+        try {
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Gerando fechamento combinatório...</p></div>';
+            const data = await this.apiRequest(`/api/previsoes/fechamento?jogo_slug=${this.currentGame}&garantia=${garantia}&tamanho_universo=${tamanho}`, {
+                method: 'POST'
+            });
+
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value">${data.total_jogos}</div><div class="stat-label">Total de Jogos</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.tamanho_universo}</div><div class="stat-label">Universo</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.cobertura}%</div><div class="stat-label">Cobertura</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.garantia}</div><div class="stat-label">Garantia</div></div>
+                </div>
+                <h3>Universo Selecionado</h3>
+                <div class="universo-nums">${data.universo?.map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ')}</div>
+                <h3>Jogos Gerados</h3><div class="fechamento-list">`;
+
+            data.jogos?.forEach((j, i) => {
+                const nums = j.numeros.map(n => `<span class="ball">${String(n).padStart(2, '0')}</span>`).join(' ');
+                const trevos = j.trevos?.length > 0 ? ' + ' + j.trevos.map(t => `<span class="ball trevo">${t}</span>`).join(' ') : '';
+                html += `<div class="fechamento-card">
+                    <span class="jogo-num">Jogo ${i + 1}</span>
+                    <span class="jogo-nums">${nums}${trevos}</span>
+                    <span class="jogo-score">Score: ${j.score}</span>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="error-state"><p>❌ ${err.message}</p></div>`;
+        }
+    },
+
+    // ========================================
+    // BACKTESTING
+    // ========================================
+    async executarBacktest() {
+        const container = document.getElementById('backtest-content');
+        if (!container) return;
+        const concursos = parseInt(document.getElementById('backtest-concursos')?.value || '50');
+        const cartelas = parseInt(document.getElementById('backtest-cartelas')?.value || '3');
+
+        try {
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Executando backtesting... Pode levar alguns minutos.</p></div>';
+            const data = await this.apiRequest('/api/backtesting/executar', {
+                method: 'POST',
+                body: JSON.stringify({ jogo_slug: this.currentGame, concursos_teste: concursos, cartelas_por_concurso: cartelas })
+            });
+
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value">${data.concursos_testados}</div><div class="stat-label">Concursos Testados</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.total_cartelas}</div><div class="stat-label">Total Cartelas</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.taxa_4_acertos}%</div><div class="stat-label">Taxa 4 Acertos</div></div>
+                    <div class="stat-card"><div class="stat-value">${data.taxa_5_acertos}%</div><div class="stat-label">Taxa 5 Acertos</div></div>
+                </div>
+                <h3>Distribuição de Acertos</h3><div class="acertos-grid">`;
+
+            if (data.distribuicao_acertos) {
+                for (const [acertos, qtd] of Object.entries(data.distribuicao_acertos)) {
+                    if (qtd > 0) {
+                        html += `<div class="acerto-card"><div class="acerto-num">${acertos}</div><div class="acerto-label">acertos</div><div class="acerto-qtd">${qtd}x</div></div>`;
+                    }
+                }
+            }
+            html += '</div>';
+
+            if (data.melhores_resultados?.length > 0) {
+                html += '<h3>Melhores Resultados</h3><div class="melhores-list">';
+                for (const m of data.melhores_resultados) {
+                    html += `<div class="melhor-card">
+                        <span>Concurso ${m.concurso}</span>
+                        <span class="melhor-acertos">${m.acertos} acertos</span>
+                        <span class="melhor-nums">${m.sorteados.map(n => String(n).padStart(2, '0')).join(', ')}</span>
+                    </div>`;
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="error-state"><p>❌ ${err.message}</p></div>`;
+        }
+    },
+
+    // ========================================
+    // ALERTAS
+    // ========================================
+    async verificarAlertas() {
+        const container = document.getElementById('alertas-content');
+        if (!container) return;
+        try {
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Verificando alertas...</p></div>';
+            const data = await this.apiRequest(`/api/alertas/verificar?jogo_slug=${this.currentGame}`, { method: 'POST' });
+
+            if (!data.alertas || data.alertas.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>✅ Nenhum alerta no momento.</p></div>';
+                return;
+            }
+
+            let html = `<div class="stat-card"><div class="stat-value">${data.total}</div><div class="stat-label">Alertas Encontrados</div></div><div class="alertas-list">`;
+            for (const a of data.alertas) {
+                const icon = a.tipo === 'atraso_critico' ? '⏰' : a.tipo === 'score_alto' ? '🔥' : '📊';
+                const cor = a.tipo === 'atraso_critico' ? '#e74c3c' : '#27ae60';
+                html += `<div class="alerta-card" style="border-left-color:${cor}">
+                    <span class="alerta-icon">${icon}</span>
+                    <span class="alerta-msg">${a.mensagem}</span>
+                </div>`;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="error-state"><p>❌ ${err.message}</p></div>`;
+        }
+    },
+
+    // ========================================
+    // INSERIR RESULTADO MANUAL
+    // ========================================
+    async inserirResultado() {
+        const concurso = parseInt(document.getElementById('inserir-concurso')?.value);
+        const data = document.getElementById('inserir-data')?.value;
+        const numerosStr = document.getElementById('inserir-numeros')?.value || '';
+        const trevosStr = document.getElementById('inserir-trevos')?.value || '';
+        const premio = parseFloat(document.getElementById('inserir-premio')?.value || '0');
+        const acumulou = document.getElementById('inserir-acumulou')?.checked || false;
+
+        const numeros = numerosStr.split(/[,\s]+/).filter(n => n).map(Number);
+        const trevos = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number) : [];
+
+        if (!concurso || !data || numeros.length === 0) {
+            this.showNotification('Preencha todos os campos obrigatórios', 'error');
+            return;
+        }
+
+        try {
+            await this.apiRequest('/api/resultados/', {
                 method: 'POST',
                 body: JSON.stringify({
-                    jogo_slug: this.currentJogo,
-                    numeros: numeros,
-                    trevos: trevos
+                    jogo_slug: this.currentGame,
+                    concurso,
+                    data_sorteio: data,
+                    numeros,
+                    trevos,
+                    premio_principal: premio,
+                    acumulou
                 })
             });
-            this.renderValidacao(response);
-        } catch (error) {
-            alert('Erro: ' + error.message);
-        } finally {
-            Utils.hideLoading('validacao-loading');
-            if (btn) btn.disabled = false;
-        }
-    },
-
-    renderValidacao(data) {
-        var container = document.getElementById('validacao-resultado');
-        if (!container) return;
-
-        var scoreClass = data.score_medio >= 65 ? 'score-high' :
-                         data.score_medio >= 40 ? 'score-mid' : 'score-low';
-
-        // Números com bolas coloridas
-        var numsHtml = '';
-        for (var i = 0; i < data.numeros.length; i++) {
-            var n = data.numeros[i];
-            var score = data.scores_individuais[String(n)] ? data.scores_individuais[String(n)].score_ensemble : 0;
-            var cls = score >= 60 ? 'hot' : score >= 40 ? 'warm' : score >= 20 ? 'neutral' : 'cold';
-            numsHtml += '<div class="numero-ball ' + cls + '" title="Score: ' + score.toFixed(1) + '">' +
-                String(n).padStart(2, '0') +
-                '<span class="score-tag">' + score.toFixed(0) + '</span></div>';
-        }
-
-        // Recomendações
-        var recsHtml = '';
-        if (data.recomendacoes.length > 0) {
-            recsHtml = '<h3>Recomendações</h3>';
-            for (var r = 0; r < data.recomendacoes.length; r++) {
-                var rec = data.recomendacoes[r];
-                var sev = rec.tipo === 'critico' ? '3' : rec.tipo === 'aviso' ? '2' : '1';
-                recsHtml += '<div class="alerta-card severidade-' + sev + '">' +
-                    '<div class="alerta-descricao">' + rec.mensagem + '</div></div>';
-            }
-        } else {
-            recsHtml = '<p class="info-text">✅ Nenhuma recomendação — jogo bem equilibrado!</p>';
-        }
-
-        // Substituições
-        var subsHtml = '';
-        if (data.substituicoes_sugeridas.length > 0) {
-            subsHtml = '<h3>Substituições Sugeridas</h3>';
-            for (var s = 0; s < data.substituicoes_sugeridas.length; s++) {
-                var sub = data.substituicoes_sugeridas[s];
-                subsHtml += '<div class="resultado-item" style="margin-bottom:8px;">' +
-                    'Trocar <span class="numero-ball cold" style="width:36px;height:36px;font-size:13px;display:inline-flex;">' +
-                    String(sub.remover).padStart(2, '0') + '</span>' +
-                    ' <span class="text-muted">(score ' + sub.remover_score.toFixed(0) + ')</span>' +
-                    ' ➜ ' +
-                    '<span class="numero-ball hot" style="width:36px;height:36px;font-size:13px;display:inline-flex;">' +
-                    String(sub.adicionar).padStart(2, '0') + '</span>' +
-                    ' <span class="text-muted">(score ' + sub.adicionar_score.toFixed(0) + ')</span>' +
-                    '</div>';
-            }
-        }
-
-        var v = data.validacao_distribuicao;
-        var somaIcon = v.soma_dentro_padrao ? ' ✅' : ' ⚠️';
-
-        container.innerHTML = '<div class="card">' +
-            '<div class="validacao-header">' +
-            '<div class="validacao-classificacao">' + data.classificacao + '</div>' +
-            '<div class="previsao-score ' + scoreClass + '" style="font-size:32px;">Score: ' + data.score_medio + '</div>' +
-            '<div class="text-muted">Posição média no ranking: ' + data.posicao_media + '</div>' +
-            '</div>' +
-            '<h3>Seus Números</h3>' +
-            '<div class="resultado-numeros" style="margin-bottom:20px;">' + numsHtml + '</div>' +
-            '<h3>Distribuição</h3>' +
-            '<div class="resultado-item" style="margin-bottom:16px;">' +
-            'Soma: <strong>' + v.soma + '</strong> (ideal: ' + v.soma_ideal_range[0] + ' - ' + v.soma_ideal_range[1] + ')' + somaIcon +
-            ' | Pares: <strong>' + v.pares + '</strong> | Ímpares: <strong>' + v.impares + '</strong>' +
-            '</div>' +
-            recsHtml +
-            subsHtml +
-            '</div>';
-    },
-
-    // ==========================================
-    // FECHAMENTO
-    // ==========================================
-    async gerarFechamento() {
-        var btn = document.getElementById('btn-fechamento');
-        if (btn) btn.disabled = true;
-        Utils.showLoading('fechamento-loading');
-
-        var universo = parseInt(document.getElementById('fech-universo').value) || 18;
-        var garantia = document.getElementById('fech-garantia').value || 'quadra';
-
-        try {
-            var data = await API.gerarFechamento(this.currentJogo, garantia, universo);
-            this.renderFechamento(data);
-        } catch (error) {
-            alert('Erro no fechamento: ' + error.message);
-        } finally {
-            Utils.hideLoading('fechamento-loading');
-            if (btn) btn.disabled = false;
-        }
-    },
-
-    renderFechamento(data) {
-        var container = document.getElementById('fechamento-resultado');
-        if (!container) return;
-
-        var universoHtml = '';
-        for (var i = 0; i < data.universo.length; i++) {
-            universoHtml += Utils.createBall(data.universo[i]);
-        }
-
-        var cartelasHtml = '';
-        for (var c = 0; c < data.cartelas.length; c++) {
-            var cartela = data.cartelas[c];
-            var cartelaNums = '';
-            for (var n = 0; n < cartela.length; n++) {
-                cartelaNums += Utils.createBall(cartela[n]);
-            }
-            cartelasHtml += '<div class="cartela-item">' +
-                '<span class="cartela-num">#' + (c + 1) + '</span>' +
-                '<div class="resultado-numeros">' + cartelaNums + '</div>' +
-                '</div>';
-        }
-
-        container.innerHTML = '<div class="card">' +
-            '<h3>🔒 Fechamento Gerado</h3>' +
-            '<div class="stats-grid">' +
-            '<div class="stat-card"><div class="stat-value">' + data.total_cartelas + '</div><div class="stat-label">Cartelas</div></div>' +
-            '<div class="stat-card"><div class="stat-value">' + data.universo_tamanho + '</div><div class="stat-label">Números Base</div></div>' +
-            '<div class="stat-card accent"><div class="stat-value">' + Utils.formatMoney(data.custo_total) + '</div><div class="stat-label">Custo Total</div></div>' +
-            '</div>' +
-            '<p class="info-text">' + data.garantia + '</p>' +
-            '<h4>Universo de Números:</h4>' +
-            '<div class="resultado-numeros" style="margin:8px 0 20px;">' + universoHtml + '</div>' +
-            '<h4>Cartelas (' + data.total_cartelas + '):</h4>' +
-            '<div class="cartelas-grid">' + cartelasHtml + '</div>' +
-            '</div>';
-    },
-
-    // ==========================================
-    // BACKTESTING
-    // ==========================================
-    async executarBacktest() {
-        var btn = document.getElementById('btn-backtest');
-        if (btn) btn.disabled = true;
-        Utils.showLoading('backtest-loading');
-
-        var concursos = parseInt(document.getElementById('bt-concursos').value) || 50;
-        var cartelas = parseInt(document.getElementById('bt-cartelas').value) || 3;
-
-        try {
-            var data = await API.executarBacktest(this.currentJogo, concursos, cartelas);
-            this.renderBacktest(data);
-        } catch (error) {
-            alert('Erro no backtesting: ' + error.message);
-        } finally {
-            Utils.hideLoading('backtest-loading');
-            if (btn) btn.disabled = false;
-        }
-    },
-
-    renderBacktest(data) {
-        var container = document.getElementById('backtest-resultado');
-        if (!container) return;
-
-        var acertos = data.distribuicao_acertos || {};
-        var taxas = data.taxa_acerto_por_faixa || {};
-
-        var acertosKeys = Object.keys(acertos).sort(function(a, b) { return parseInt(b) - parseInt(a); });
-
-        var rowsHtml = '';
-        for (var i = 0; i < acertosKeys.length; i++) {
-            var k = acertosKeys[i];
-            var v = acertos[k];
-            var pct = taxas[k] || 0;
-            var barWidth = Math.min(pct * 3, 100);
-            rowsHtml += '<div class="backtest-row">' +
-                '<span class="backtest-label">' + k + ' acertos</span>' +
-                '<div class="backtest-bar-container"><div class="backtest-bar" style="width:' + barWidth + '%"></div></div>' +
-                '<span class="backtest-value">' + v + ' cartelas (' + pct + '%)</span>' +
-                '</div>';
-        }
-
-        container.innerHTML = '<div class="card">' +
-            '<h3>📈 Resultados do Backtesting</h3>' +
-            '<div class="stats-grid">' +
-            '<div class="stat-card"><div class="stat-value">' + data.total_concursos_testados + '</div><div class="stat-label">Concursos Testados</div></div>' +
-            '<div class="stat-card"><div class="stat-value">' + data.total_cartelas_geradas + '</div><div class="stat-label">Cartelas Geradas</div></div>' +
-            '<div class="stat-card"><div class="stat-value">' + Utils.formatDate(data.periodo ? data.periodo.inicio : '') + '</div><div class="stat-label">Período Início</div></div>' +
-            '<div class="stat-card"><div class="stat-value">' + Utils.formatDate(data.periodo ? data.periodo.fim : '') + '</div><div class="stat-label">Período Fim</div></div>' +
-            '</div>' +
-            '<h4>Distribuição de Acertos:</h4>' +
-            '<div class="backtest-results">' + rowsHtml + '</div>' +
-            '</div>';
-    },
-
-    // ==========================================
-    // ALERTAS
-    // ==========================================
-    async verificarAlertas() {
-        var btn = document.getElementById('btn-verificar-alertas');
-        if (btn) btn.disabled = true;
-        Utils.showLoading('alertas-loading');
-
-        try {
-            var data = await API.verificarAlertas(this.currentJogo);
-            this.renderAlertas(data.alertas || []);
-        } catch (error) {
-            alert('Erro nos alertas: ' + error.message);
-        } finally {
-            Utils.hideLoading('alertas-loading');
-            if (btn) btn.disabled = false;
-        }
-    },
-
-    renderAlertas(alertas) {
-        var container = document.getElementById('alertas-lista');
-        if (!container) return;
-
-        if (alertas.length === 0) {
-            container.innerHTML = '<p class="text-muted">Nenhum alerta detectado no momento.</p>';
-            return;
-        }
-
-        var html = '';
-        for (var i = 0; i < alertas.length; i++) {
-            var a = alertas[i];
-            var numsHtml = '';
-            var nums = a.numeros || a.numeros_envolvidos || [];
-            if (nums.length > 0) {
-                numsHtml = '<div class="resultado-numeros" style="margin-top:8px;">';
-                for (var j = 0; j < nums.length; j++) {
-                    numsHtml += Utils.createBall(nums[j]);
-                }
-                numsHtml += '</div>';
-            }
-
-            html += '<div class="alerta-card severidade-' + a.severidade + '">' +
-                '<div class="alerta-titulo">' + a.titulo + '</div>' +
-                '<div class="alerta-descricao">' + a.descricao + '</div>' +
-                numsHtml +
-                '</div>';
-        }
-        container.innerHTML = html;
-
-        var badge = document.getElementById('alertas-badge');
-        if (badge && alertas.length > 0) {
-            badge.textContent = alertas.length;
-            badge.classList.remove('hidden');
-        }
-    },
-
-    // ==========================================
-    // INSERIR RESULTADO MANUAL
-    // ==========================================
-    async inserirResultado() {
-        var concurso = parseInt(document.getElementById('inp-concurso').value);
-        var dataSorteio = document.getElementById('inp-data').value;
-        var numerosStr = document.getElementById('inp-numeros').value || '';
-        var trevosStr = document.getElementById('inp-trevos') ? document.getElementById('inp-trevos').value : '';
-        var premio = parseFloat(document.getElementById('inp-premio').value) || 0;
-        var acumulou = document.getElementById('inp-acumulou').checked || false;
-
-        if (!concurso || !dataSorteio || !numerosStr.trim()) {
-            Utils.showFeedback('inserir-feedback', '⚠️ Preencha concurso, data e números.', 'error');
-            return;
-        }
-
-        var numeros = numerosStr.split(',').map(function(n) { return parseInt(n.trim()); }).filter(function(n) { return !isNaN(n); });
-        var trevos = [];
-        if (trevosStr && trevosStr.trim()) {
-            trevos = trevosStr.split(',').map(function(n) { return parseInt(n.trim()); }).filter(function(n) { return !isNaN(n); });
-        }
-
-        try {
-            await API.inserirResultado({
-                jogo_slug: this.currentJogo,
-                concurso: concurso,
-                data_sorteio: dataSorteio,
-                numeros: numeros,
-                trevos: trevos,
-                premio_principal: premio,
-                acumulou: acumulou
-            });
-
-            Utils.showFeedback('inserir-feedback', '✅ Concurso #' + concurso + ' inserido com sucesso!', 'success');
-
-            document.getElementById('inp-concurso').value = '';
-            document.getElementById('inp-numeros').value = '';
-            if (document.getElementById('inp-trevos')) {
-                document.getElementById('inp-trevos').value = '';
-            }
-
-        } catch (error) {
-            Utils.showFeedback('inserir-feedback', '❌ Erro: ' + error.message, 'error');
-        }
-    },
-
-    // ==========================================
-    // IMPORTAR HISTÓRICO
-    // ==========================================
-    async importarHistorico() {
-        var btn = document.getElementById('btn-importar-todos');
-        if (btn) btn.disabled = true;
-
-        var desdeAno = parseInt(document.getElementById('import-desde').value) || 2020;
-
-        Utils.showFeedback('import-feedback',
-            '⏳ Importando dados da Caixa... Isso pode levar vários minutos. <strong>NÃO feche esta página.</strong>',
-            'success'
-        );
-
-        try {
-            var data = await API.request('/api/importar-todos?desde_ano=' + desdeAno, {
-                method: 'POST'
-            });
-
-            var msg = '✅ <strong>Importação concluída!</strong><br><br>';
-            if (data.resultados) {
-                for (var i = 0; i < data.resultados.length; i++) {
-                    var r = data.resultados[i];
-                    var icon = r.status === 'importado' ? '✅' :
-                               r.status === 'ja_atualizado' ? '➖' : '⚠️';
-                    msg += icon + ' <strong>' + r.jogo + '</strong>: ' + r.status;
-                    if (r.inseridos !== undefined) msg += ' (' + r.inseridos + ' inseridos)';
-                    if (r.range) msg += ' [' + r.range + ']';
-                    msg += '<br>';
-                }
-            }
-            msg += '<br>🎉 Agora volte ao Dashboard e execute a Análise IA!';
-
-            Utils.showFeedback('import-feedback', msg, 'success');
+            this.showNotification(`Concurso ${concurso} inserido com sucesso!`, 'success');
             this.loadDashboard();
-
-        } catch (error) {
-            Utils.showFeedback('import-feedback', '❌ Erro: ' + error.message, 'error');
-        } finally {
-            if (btn) btn.disabled = false;
+        } catch (err) {
+            this.showNotification(`Erro: ${err.message}`, 'error');
         }
     },
 
-    // ==========================================
+    // ========================================
+    // IMPORTAR HISTÓRICO VIA PROXY (NOVO!)
+    // ========================================
+    async importarHistoricoProxy() {
+        const btn = document.getElementById('btn-importar-todos');
+        const statusEl = document.getElementById('import-status');
+        if (!btn) return;
+
+        const desdeAno = parseInt(document.getElementById('import-desde')?.value || '2022');
+
+        btn.disabled = true;
+        btn.textContent = 'Importando...';
+
+        const jogos = ['mega-sena', 'lotofacil', 'lotomania', 'mais-milionaria'];
+        const apiNomes = {
+            'mega-sena': 'megasena',
+            'lotofacil': 'lotofacil',
+            'lotomania': 'lotomania',
+            'mais-milionaria': 'maismilionaria'
+        };
+
+        // Estimativas de concurso inicial por ano
+        const estimativas = {
+            'mega-sena':       { 2018: 2000, 2019: 2100, 2020: 2200, 2021: 2330, 2022: 2460, 2023: 2600, 2024: 2750, 2025: 2880 },
+            'lotofacil':       { 2018: 1600, 2019: 1700, 2020: 1900, 2021: 2100, 2022: 2400, 2023: 2700, 2024: 3100, 2025: 3400 },
+            'lotomania':       { 2018: 1800, 2019: 1900, 2020: 2050, 2021: 2150, 2022: 2300, 2023: 2450, 2024: 2600, 2025: 2750 },
+            'mais-milionaria': { 2018: 1, 2019: 1, 2020: 1, 2021: 1, 2022: 1, 2023: 50, 2024: 150, 2025: 250 }
+        };
+
+        const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
+        let totalGeral = 0;
+        let resultadoHtml = '';
+
+        const updateStatus = (msg) => {
+            if (statusEl) statusEl.innerHTML = msg;
+        };
+
+        for (const jogo of jogos) {
+            const apiNome = apiNomes[jogo];
+            updateStatus(`🔄 Buscando último concurso de ${jogo}...`);
+
+            try {
+                // 1. Buscar último concurso da Caixa
+                const respUltimo = await fetch(`${caixaBase}/${apiNome}`);
+                if (!respUltimo.ok) {
+                    resultadoHtml += `<div class="import-item">⚠️ ${jogo}: API da Caixa retornou ${respUltimo.status}</div>`;
+                    continue;
+                }
+                const dataUltimo = await respUltimo.json();
+                const ultimoCaixa = dataUltimo.numero;
+
+                // 2. Buscar último concurso já no banco
+                let ultimoDB = 0;
+                try {
+                    const respDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`);
+                    ultimoDB = respDB.ultimo?.concurso || 0;
+                } catch (e) {
+                    ultimoDB = 0;
+                }
+
+                // 3. Calcular range
+                const estJogo = estimativas[jogo] || {};
+                const desdeConc = estJogo[desdeAno] || 1;
+                const inicio = Math.max(desdeConc, ultimoDB + 1);
+
+                if (inicio > ultimoCaixa) {
+                    resultadoHtml += `<div class="import-item">✅ ${jogo}: já atualizado (concurso ${ultimoDB})</div>`;
+                    updateStatus(resultadoHtml);
+                    continue;
+                }
+
+                const totalConc = ultimoCaixa - inicio + 1;
+                updateStatus(resultadoHtml + `<div class="import-item">🔄 ${jogo}: importando ${totalConc} concursos (${inicio} → ${ultimoCaixa})...</div>`);
+
+                // 4. Buscar concursos em lotes
+                let batch = [];
+                let inseridos = 0;
+                let erros = 0;
+
+                for (let num = inicio; num <= ultimoCaixa; num++) {
+                    try {
+                        const resp = await fetch(`${caixaBase}/${apiNome}/${num}`);
+                        if (!resp.ok) { erros++; continue; }
+                        const d = await resp.json();
+
+                        const numeros = (d.listaDezenas || []).map(Number);
+                        const trevos = (d.trevosSorteados || []).map(Number);
+                        const premio = d.listaRateioPremio?.[0]?.valorPremio || 0;
+
+                        batch.push({
+                            concurso: num,
+                            data_sorteio: d.dataApuracao || '',
+                            numeros: numeros,
+                            trevos: trevos,
+                            premio_principal: premio,
+                            acumulou: d.acumulado || false
+                        });
+
+                        // Enviar batch de 30
+                        if (batch.length >= 30) {
+                            await this.apiRequest('/api/importar-proxy', {
+                                method: 'POST',
+                                body: JSON.stringify({ jogo_slug: jogo, resultados: batch })
+                            });
+                            inseridos += batch.length;
+                            batch = [];
+                            updateStatus(resultadoHtml + `<div class="import-item">🔄 ${jogo}: ${inseridos}/${totalConc} importados...</div>`);
+                        }
+
+                        // Rate limit - 100ms entre requisições
+                        await new Promise(r => setTimeout(r, 100));
+
+                    } catch (e) {
+                        erros++;
+                    }
+                }
+
+                // Enviar batch restante
+                if (batch.length > 0) {
+                    try {
+                        await this.apiRequest('/api/importar-proxy', {
+                            method: 'POST',
+                            body: JSON.stringify({ jogo_slug: jogo, resultados: batch })
+                        });
+                        inseridos += batch.length;
+                    } catch (e) {
+                        erros += batch.length;
+                    }
+                }
+
+                totalGeral += inseridos;
+                resultadoHtml += `<div class="import-item">✅ ${jogo}: ${inseridos} concursos importados${erros > 0 ? ` (${erros} erros)` : ''}</div>`;
+                updateStatus(resultadoHtml);
+
+            } catch (err) {
+                resultadoHtml += `<div class="import-item">❌ ${jogo}: ${err.message}</div>`;
+                updateStatus(resultadoHtml);
+            }
+        }
+
+        resultadoHtml += `<div class="import-total">📊 Total importado: ${totalGeral} concursos</div>`;
+        updateStatus(resultadoHtml);
+
+        btn.disabled = false;
+        btn.textContent = 'Importar Todos os Jogos';
+        this.showNotification(`Importação concluída! ${totalGeral} concursos importados.`, 'success');
+        this.loadDashboard();
+    },
+
+    // ========================================
     // FORÇAR ATUALIZAÇÃO
-    // ==========================================
+    // ========================================
     async forcarAtualizacao() {
-        var btn = document.getElementById('btn-forcar-update');
-        if (btn) btn.disabled = true;
+        const btn = document.getElementById('btn-atualizar');
+        const statusEl = document.getElementById('update-status');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.textContent = 'Atualizando...';
 
+        // Tenta via backend primeiro, se der 403, faz via proxy
         try {
-            var data = await API.request('/api/atualizar', {
-                method: 'POST'
-            });
+            const data = await this.apiRequest('/api/atualizar', { method: 'POST' });
+            const algumBloqueado = data.resultados?.some(r => r.status === 'api_bloqueada_403');
 
-            var msg = '🔄 Atualização concluída:<br>';
-            if (data.resultados) {
-                for (var i = 0; i < data.resultados.length; i++) {
-                    var r = data.resultados[i];
-                    var icon = r.status === 'novo_resultado' ? '✅' :
-                               r.status === 'sem_novidade' ? '➖' : '⚠️';
-                    msg += icon + ' ' + r.slug + ': ' + r.status;
-                    if (r.concurso) msg += ' (#' + r.concurso + ')';
-                    msg += '<br>';
+            if (algumBloqueado) {
+                // Fallback: atualizar via proxy pelo navegador
+                if (statusEl) statusEl.innerHTML = '🔄 Backend bloqueado pela Caixa. Atualizando via navegador...';
+                await this.atualizarViaProxy();
+            } else {
+                let html = '';
+                for (const r of (data.resultados || [])) {
+                    const icon = r.status === 'atualizado' ? '✅' : r.status === 'ja_atualizado' ? '➡️' : '⚠️';
+                    html += `<div class="import-item">${icon} ${r.jogo}: ${r.status}${r.concurso ? ` (concurso ${r.concurso})` : ''}</div>`;
                 }
+                if (statusEl) statusEl.innerHTML = html;
+                this.showNotification('Atualização concluída!', 'success');
             }
-
-            Utils.showFeedback('update-feedback', msg, 'success');
-            this.loadDashboard();
-
-        } catch (error) {
-            Utils.showFeedback('update-feedback', '❌ Erro: ' + error.message, 'error');
-        } finally {
-            if (btn) btn.disabled = false;
+        } catch (err) {
+            // Fallback: proxy
+            if (statusEl) statusEl.innerHTML = '🔄 Tentando via navegador...';
+            await this.atualizarViaProxy();
         }
+
+        btn.disabled = false;
+        btn.textContent = 'Forçar Atualização';
+        this.loadDashboard();
+    },
+
+    async atualizarViaProxy() {
+        const statusEl = document.getElementById('update-status');
+        const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
+        const apiNomes = {
+            'mega-sena': 'megasena',
+            'lotofacil': 'lotofacil',
+            'lotomania': 'lotomania',
+            'mais-milionaria': 'maismilionaria'
+        };
+        let html = '';
+        for (const [jogo, apiNome] of Object.entries(apiNomes)) {
+            try {
+                const resp = await fetch(`${caixaBase}/${apiNome}`);
+                if (!resp.ok) { html += `<div class="import-item">⚠️ ${jogo}: erro ${resp.status}</div>`; continue; }
+                const d = await resp.json();
+                const concurso = d.numero;
+                let ultimoDB = 0;
+                try {
+                    const rDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`);
+                    ultimoDB = rDB.ultimo?.concurso || 0;
+                } catch (e) {}
+
+                if (concurso <= ultimoDB) {
+                    html += `<div class="import-item">➡️ ${jogo}: já atualizado (${ultimoDB})</div>`;
+                } else {
+                    const numeros = (d.listaDezenas || []).map(Number);
+                    const trevos = (d.trevosSorteados || []).map(Number);
+                    const premio = d.listaRateioPremio?.[0]?.valorPremio || 0;
+                    await this.apiRequest('/api/importar-proxy', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            jogo_slug: jogo,
+                            resultados: [{
+                                concurso, data_sorteio: d.dataApuracao || '',
+                                numeros, trevos, premio_principal: premio,
+                                acumulou: d.acumulado || false
+                            }]
+                        })
+                    });
+                    html += `<div class="import-item">✅ ${jogo}: atualizado para concurso ${concurso}</div>`;
+                }
+            } catch (e) {
+                html += `<div class="import-item">❌ ${jogo}: ${e.message}</div>`;
+            }
+        }
+        if (statusEl) statusEl.innerHTML = html;
+        this.showNotification('Atualização via proxy concluída!', 'success');
+    },
+
+    // ========================================
+    // NOTIFICATION
+    // ========================================
+    showNotification(msg, type = 'info') {
+        const existing = document.querySelector('.notification');
+        if (existing) existing.remove();
+
+        const div = document.createElement('div');
+        div.className = `notification notification-${type}`;
+        div.textContent = msg;
+        document.body.appendChild(div);
+
+        setTimeout(() => div.classList.add('show'), 10);
+        setTimeout(() => {
+            div.classList.remove('show');
+            setTimeout(() => div.remove(), 300);
+        }, 4000);
     }
 };
 
-// ==========================================
-// INICIALIZAR QUANDO DOM ESTIVER PRONTO
-// ==========================================
-document.addEventListener('DOMContentLoaded', function() {
+// ========================================
+// INIT
+// ========================================
+document.addEventListener('DOMContentLoaded', function () {
     App.init();
 });
