@@ -107,7 +107,7 @@
             </div>
         </section>
 
-        <!-- ========== ANÁLISE ========== -->
+        <!-- ========== ANÁLISE IA ========== -->
         <section id="page-analise" class="page">
             <div class="page-header">
                 <h2>Análise Completa IA</h2>
@@ -193,7 +193,7 @@
                         <label>Seus Números (separados por vírgula)</label>
                         <input type="text" id="val-numeros" placeholder="Ex: 5, 12, 23, 34, 45, 56">
                     </div>
-                    <div class="form-group full-width trevos-val-group hidden" id="trevos-val-group">
+                    <div class="form-group full-width hidden" id="trevos-val-group">
                         <label>Trevos (separados por vírgula)</label>
                         <input type="text" id="val-trevos" placeholder="Ex: 2, 5">
                     </div>
@@ -307,9 +307,10 @@
         <!-- ========== INSERIR DADOS ========== -->
         <section id="page-inserir" class="page">
             <div class="page-header">
-                <h2>Inserir Resultado</h2>
+                <h2>Inserir Dados</h2>
             </div>
 
+            <!-- CONFIGURAÇÃO -->
             <div class="card">
                 <h3 style="margin-top:0;">⚙️ Configuração do Sistema</h3>
                 <p class="info-text">Configure a conexão com o backend. Você só precisa fazer isso uma vez.</p>
@@ -332,6 +333,32 @@
                 <div id="config-feedback"></div>
             </div>
 
+            <!-- IMPORTAR HISTÓRICO -->
+            <div class="card">
+                <h3 style="margin-top:0;">📥 Importar Dados Históricos</h3>
+                <p class="info-text">
+                    Importa anos de resultados da API da Caixa Econômica Federal.
+                    <strong>Execute isso na primeira vez</strong> — leva alguns minutos dependendo do período.
+                </p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Importar desde o ano</label>
+                        <select id="import-desde">
+                            <option value="2024">2024 (rápido ~2 min)</option>
+                            <option value="2022">2022 (~5 min)</option>
+                            <option value="2020" selected>2020 (~15 min)</option>
+                            <option value="2019">2019 (~20 min)</option>
+                            <option value="2018">2018 (~25 min)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button id="btn-importar-todos" class="btn btn-primary">📥 Importar Todos os Jogos</button>
+                    </div>
+                </div>
+                <div id="import-feedback"></div>
+            </div>
+
+            <!-- INSERIR RESULTADO MANUAL -->
             <div class="card">
                 <h3 style="margin-top:0;">➕ Inserir Resultado Manualmente</h3>
                 <div class="form-grid">
@@ -367,9 +394,10 @@
                 <div id="inserir-feedback"></div>
             </div>
 
+            <!-- FORÇAR ATUALIZAÇÃO -->
             <div class="card">
                 <h3 style="margin-top:0;">🔄 Forçar Atualização</h3>
-                <p class="info-text">Busca os resultados mais recentes na API da Caixa.</p>
+                <p class="info-text">Busca apenas os resultados mais recentes (últimos concursos) na API da Caixa.</p>
                 <button id="btn-forcar-update" class="btn btn-secondary">🔄 Atualizar Agora</button>
                 <div id="update-feedback"></div>
             </div>
