@@ -8,6 +8,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
+
+    <!-- MOBILE MENU TOGGLE -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn">☰</button>
+
     <!-- SIDEBAR -->
     <nav id="sidebar">
         <div class="sidebar-header">
@@ -19,10 +23,13 @@
                 <span class="nav-icon">📊</span> Dashboard
             </li>
             <li class="nav-item" data-page="analise">
-                <span class="nav-icon">🔬</span> Análise
+                <span class="nav-icon">🔬</span> Análise IA
             </li>
             <li class="nav-item" data-page="previsoes">
                 <span class="nav-icon">🎯</span> Previsões
+            </li>
+            <li class="nav-item" data-page="validar">
+                <span class="nav-icon">✅</span> Validar Jogo
             </li>
             <li class="nav-item" data-page="fechamento">
                 <span class="nav-icon">🔒</span> Fechamento
@@ -40,10 +47,10 @@
         </ul>
         <div class="sidebar-footer">
             <select id="jogo-selector">
-                <option value="mega-sena">Mega-Sena</option>
-                <option value="lotofacil">Lotofácil</option>
-                <option value="lotomania">Lotomania</option>
-                <option value="mais-milionaria">+Milionária</option>
+                <option value="mega-sena">🎱 Mega-Sena</option>
+                <option value="lotofacil">🍀 Lotofácil</option>
+                <option value="lotomania">💰 Lotomania</option>
+                <option value="mais-milionaria">💎 +Milionária</option>
             </select>
         </div>
     </nav>
@@ -51,7 +58,7 @@
     <!-- MAIN CONTENT -->
     <main id="main-content">
 
-        <!-- DASHBOARD -->
+        <!-- ========== DASHBOARD ========== -->
         <section id="page-dashboard" class="page active">
             <div class="page-header">
                 <h2>Dashboard</h2>
@@ -79,62 +86,72 @@
 
             <div class="charts-grid">
                 <div class="chart-card full-width">
-                    <h3>Frequência dos Números (Últimos 200 concursos)</h3>
-                    <canvas id="chart-frequencia"></canvas>
+                    <h3>Score dos Números (Ensemble de 6 modelos)</h3>
+                    <div class="chart-container"><canvas id="chart-frequencia"></canvas></div>
                 </div>
                 <div class="chart-card">
-                    <h3>Top 10 - Mais Frequentes</h3>
-                    <canvas id="chart-top10"></canvas>
+                    <h3>🔥 Top 10 — Mais Quentes</h3>
+                    <div class="chart-container"><canvas id="chart-top10"></canvas></div>
                 </div>
                 <div class="chart-card">
-                    <h3>Top 10 - Mais Atrasados</h3>
-                    <canvas id="chart-atrasados"></canvas>
+                    <h3>❄️ Top 10 — Mais Atrasados</h3>
+                    <div class="chart-container"><canvas id="chart-atrasados"></canvas></div>
                 </div>
             </div>
 
             <div class="card">
                 <h3>Últimos 10 Resultados</h3>
-                <div id="ultimos-resultados" class="resultados-list"></div>
+                <div id="ultimos-resultados" class="resultados-list">
+                    <p class="text-muted">Carregando resultados...</p>
+                </div>
             </div>
         </section>
 
-        <!-- ANÁLISE -->
+        <!-- ========== ANÁLISE ========== -->
         <section id="page-analise" class="page">
             <div class="page-header">
-                <h2>Análise Completa</h2>
-                <button id="btn-analisar" class="btn btn-primary">Executar Análise</button>
+                <h2>Análise Completa IA</h2>
+                <button id="btn-analisar" class="btn btn-primary">🧠 Executar Análise</button>
             </div>
+
+            <div class="card info-card">
+                <p>A análise treina 6 modelos de Machine Learning (Frequência Ponderada, Atraso, Padrões,
+                Distribuição, LSTM e XGBoost) e combina os resultados em um score único por número.</p>
+            </div>
+
             <div id="analise-loading" class="loading hidden">
                 <div class="spinner"></div>
-                <p>Treinando modelos de IA... Isso pode levar alguns minutos.</p>
+                <p>Treinando 6 modelos de IA... Isso pode levar 1-3 minutos.</p>
             </div>
+
             <div id="analise-resultado" class="hidden">
                 <div class="card">
-                    <h3>Ranking dos Números (Score do Ensemble)</h3>
+                    <h3>🏆 Ranking dos Números (Top 20)</h3>
+                    <p class="text-muted mb-12">Vermelho = quente | Amarelo = morno | Cinza = neutro | Azul = frio</p>
                     <div id="ranking-grid" class="numeros-grid"></div>
                 </div>
                 <div class="charts-grid">
                     <div class="chart-card">
-                        <h3>Scores por Modelo</h3>
-                        <canvas id="chart-modelos"></canvas>
+                        <h3>📊 Perfil de Distribuição</h3>
+                        <div id="distribuicao-info"></div>
                     </div>
                     <div class="chart-card">
-                        <h3>Universo Reduzido</h3>
+                        <h3>🎯 Universo Reduzido</h3>
                         <div id="universo-info"></div>
                     </div>
                 </div>
                 <div class="card">
-                    <h3>Pares Mais Frequentes</h3>
+                    <h3>🤝 Pares Mais Frequentes</h3>
                     <div id="pares-list"></div>
                 </div>
                 <div class="card">
-                    <h3>Números com Atraso Crítico</h3>
+                    <h3>⏰ Números com Atraso Crítico</h3>
                     <div id="atrasados-list"></div>
                 </div>
             </div>
         </section>
 
-        <!-- PREVISÕES -->
+        <!-- ========== PREVISÕES ========== -->
         <section id="page-previsoes" class="page">
             <div class="page-header">
                 <h2>Previsões IA</h2>
@@ -142,31 +159,73 @@
                     <label>Cartelas:
                         <input type="number" id="num-cartelas" value="3" min="1" max="20">
                     </label>
-                    <button id="btn-prever" class="btn btn-primary">Gerar Previsões</button>
+                    <button id="btn-prever" class="btn btn-primary">🎯 Gerar Previsões</button>
                 </div>
             </div>
+
             <div id="previsoes-loading" class="loading hidden">
                 <div class="spinner"></div>
                 <p>Gerando previsões com ensemble de 6 modelos...</p>
             </div>
             <div id="previsoes-resultado"></div>
+
             <div class="card mt-20">
-                <h3>Histórico de Previsões</h3>
-                <div id="previsoes-historico"></div>
+                <h3>📋 Histórico de Previsões</h3>
+                <div id="previsoes-historico">
+                    <p class="text-muted">Clique em "Gerar Previsões" para começar.</p>
+                </div>
             </div>
         </section>
 
-        <!-- FECHAMENTO -->
+        <!-- ========== VALIDAR JOGO ========== -->
+        <section id="page-validar" class="page">
+            <div class="page-header">
+                <h2>Validar Jogo Manual</h2>
+            </div>
+
+            <div class="card">
+                <p class="info-text">
+                    Já tem um jogo escolhido? Insira seus números e o sistema avalia
+                    contra os 6 modelos de IA. Receba score, classificação e sugestões de melhoria.
+                </p>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Seus Números (separados por vírgula)</label>
+                        <input type="text" id="val-numeros" placeholder="Ex: 5, 12, 23, 34, 45, 56">
+                    </div>
+                    <div class="form-group full-width trevos-val-group hidden" id="trevos-val-group">
+                        <label>Trevos (separados por vírgula)</label>
+                        <input type="text" id="val-trevos" placeholder="Ex: 2, 5">
+                    </div>
+                    <div class="form-group">
+                        <button id="btn-validar" class="btn btn-primary">✅ Validar Jogo</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="validacao-loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Analisando seu jogo contra 6 modelos de IA...</p>
+            </div>
+            <div id="validacao-resultado"></div>
+        </section>
+
+        <!-- ========== FECHAMENTO ========== -->
         <section id="page-fechamento" class="page">
             <div class="page-header">
                 <h2>Fechamento Combinatório</h2>
             </div>
+
             <div class="card">
+                <p class="info-text">
+                    Matemática pura. Gera o menor número de cartelas para garantir
+                    determinada cobertura dentro de um universo reduzido de números.
+                </p>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Tamanho do Universo</label>
-                        <input type="number" id="fech-universo" value="18" min="6" max="30">
-                        <small>Quantos números base (ex: 18 dos 60)</small>
+                        <input type="number" id="fech-universo" value="18" min="6" max="25">
+                        <small>Quantos números base (recomendado: 18)</small>
                     </div>
                     <div class="form-group">
                         <label>Garantia</label>
@@ -177,12 +236,11 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <button id="btn-fechamento" class="btn btn-primary">
-                            Gerar Fechamento
-                        </button>
+                        <button id="btn-fechamento" class="btn btn-primary">🔒 Gerar Fechamento</button>
                     </div>
                 </div>
             </div>
+
             <div id="fechamento-loading" class="loading hidden">
                 <div class="spinner"></div>
                 <p>Calculando cobertura combinatória...</p>
@@ -190,59 +248,92 @@
             <div id="fechamento-resultado"></div>
         </section>
 
-        <!-- BACKTESTING -->
+        <!-- ========== BACKTESTING ========== -->
         <section id="page-backtesting" class="page">
             <div class="page-header">
                 <h2>Backtesting</h2>
             </div>
+
             <div class="card">
                 <p class="info-text">
                     Testa a estratégia do sistema contra sorteios passados.
                     Mostra quantas quadras, quinas e senas o sistema teria acertado.
+                    É a prova de fogo do modelo.
                 </p>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Concursos para testar</label>
                         <input type="number" id="bt-concursos" value="50" min="10" max="500">
+                        <small>Recomendado: 50 (rápido) ou 100 (completo)</small>
                     </div>
                     <div class="form-group">
                         <label>Cartelas por concurso</label>
                         <input type="number" id="bt-cartelas" value="3" min="1" max="10">
                     </div>
                     <div class="form-group">
-                        <button id="btn-backtest" class="btn btn-primary">
-                            Executar Backtest
-                        </button>
+                        <button id="btn-backtest" class="btn btn-primary">📈 Executar Backtest</button>
                     </div>
                 </div>
             </div>
+
             <div id="backtest-loading" class="loading hidden">
                 <div class="spinner"></div>
-                <p>Executando backtesting... Isso pode levar vários minutos.</p>
+                <p>Executando backtesting... Isso pode levar 5-15 minutos.</p>
             </div>
             <div id="backtest-resultado"></div>
         </section>
 
-        <!-- ALERTAS -->
+        <!-- ========== ALERTAS ========== -->
         <section id="page-alertas" class="page">
             <div class="page-header">
-                <h2>Alertas</h2>
-                <button id="btn-verificar-alertas" class="btn btn-primary">
-                    Verificar Alertas
-                </button>
+                <h2>Alertas Inteligentes</h2>
+                <button id="btn-verificar-alertas" class="btn btn-primary">🔔 Verificar Alertas</button>
             </div>
+
+            <div class="card info-card">
+                <p>O sistema detecta automaticamente padrões fortes: números com atraso extremo,
+                convergência de múltiplos modelos e pares com alta frequência.</p>
+            </div>
+
             <div id="alertas-loading" class="loading hidden">
                 <div class="spinner"></div>
+                <p>Verificando padrões...</p>
             </div>
-            <div id="alertas-lista"></div>
+            <div id="alertas-lista">
+                <p class="text-muted">Clique em "Verificar Alertas" para buscar padrões.</p>
+            </div>
         </section>
 
-        <!-- INSERIR DADOS -->
+        <!-- ========== INSERIR DADOS ========== -->
         <section id="page-inserir" class="page">
             <div class="page-header">
                 <h2>Inserir Resultado</h2>
             </div>
+
             <div class="card">
+                <h3 style="margin-top:0;">⚙️ Configuração do Sistema</h3>
+                <p class="info-text">Configure a conexão com o backend. Você só precisa fazer isso uma vez.</p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Backend URL</label>
+                        <input type="text" id="backend-url-input" placeholder="https://seu-space.hf.space">
+                    </div>
+                    <div class="form-group">
+                        <button id="btn-save-url" class="btn btn-small">💾 Salvar URL</button>
+                    </div>
+                    <div class="form-group">
+                        <label>API Key (para escrita)</label>
+                        <input type="password" id="api-key-input" placeholder="Sua chave API secreta">
+                    </div>
+                    <div class="form-group">
+                        <button id="btn-save-key" class="btn btn-small">💾 Salvar Key</button>
+                    </div>
+                </div>
+                <div id="config-feedback"></div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0;">➕ Inserir Resultado Manualmente</h3>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Concurso</label>
@@ -254,48 +345,36 @@
                     </div>
                     <div class="form-group full-width">
                         <label>Números (separados por vírgula)</label>
-                        <input type="text" id="inp-numeros"
-                               placeholder="Ex: 5,12,23,34,45,56">
+                        <input type="text" id="inp-numeros" placeholder="Ex: 5, 12, 23, 34, 45, 56">
                     </div>
-                    <div class="form-group full-width trevos-group hidden" id="trevos-group">
+                    <div class="form-group full-width hidden" id="trevos-group">
                         <label>Trevos (separados por vírgula)</label>
-                        <input type="text" id="inp-trevos" placeholder="Ex: 2,5">
+                        <input type="text" id="inp-trevos" placeholder="Ex: 2, 5">
                     </div>
                     <div class="form-group">
                         <label>Prêmio Principal (R$)</label>
                         <input type="number" id="inp-premio" value="0" step="0.01">
                     </div>
                     <div class="form-group">
-                        <label>
+                        <label class="checkbox-label">
                             <input type="checkbox" id="inp-acumulou"> Acumulou
                         </label>
                     </div>
                     <div class="form-group">
-                        <button id="btn-inserir" class="btn btn-primary">
-                            Inserir Resultado
-                        </button>
+                        <button id="btn-inserir" class="btn btn-primary">➕ Inserir</button>
                     </div>
                 </div>
                 <div id="inserir-feedback"></div>
             </div>
 
-            <!-- API Key config -->
-            <div class="card mt-20">
-                <h3>Configuração</h3>
-                <div class="form-group">
-                    <label>API Key (para escrita)</label>
-                    <input type="password" id="api-key-input"
-                           placeholder="Sua chave API">
-                    <button id="btn-save-key" class="btn btn-small">Salvar</button>
-                </div>
-                <div class="form-group">
-                    <label>Backend URL</label>
-                    <input type="text" id="backend-url-input"
-                           placeholder="https://seu-space.hf.space">
-                    <button id="btn-save-url" class="btn btn-small">Salvar</button>
-                </div>
+            <div class="card">
+                <h3 style="margin-top:0;">🔄 Forçar Atualização</h3>
+                <p class="info-text">Busca os resultados mais recentes na API da Caixa.</p>
+                <button id="btn-forcar-update" class="btn btn-secondary">🔄 Atualizar Agora</button>
+                <div id="update-feedback"></div>
             </div>
         </section>
+
     </main>
 
     <script src="js/utils.js"></script>
