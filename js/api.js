@@ -2,7 +2,8 @@
  * LotoQuant - API Client
  */
 const API = {
-    baseUrl: localStorage.getItem('lotoquant_backend_url') || '',
+    // ↓↓↓ COLOQUE SUA URL AQUI ↓↓↓
+    baseUrl: localStorage.getItem('lotoquant_backend_url') || 'https://wanderhalleylee-loteria-halley-api.hf.space',
     apiKey: localStorage.getItem('lotoquant_api_key') || '',
 
     setBaseUrl(url) {
