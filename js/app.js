@@ -1,5 +1,5 @@
 // ============================================================
-// js/app.js - LotoQuant Frontend v2.3 (+ Meus Jogos + Lotomania 50)
+// js/app.js - LotoQuant Frontend v2.4 (Regras Oficiais Corrigidas)
 // ============================================================
 const App = {
     currentPage: 'dashboard',
@@ -9,10 +9,14 @@ const App = {
         apiKey: localStorage.getItem('lotoquant_api_key') || ''
     },
     jogosConfig: {
+        // Mega-Sena: escolhe 6 números de 01 a 60
         'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  escolhaMin: 6,  escolhaMax: 6,  apiNome: 'megasena',       trevos: false },
+        // Lotofácil: marca entre 15 e 20 números de 01 a 25
         'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, escolhaMin: 15, escolhaMax: 20, apiNome: 'lotofacil',      trevos: false },
-        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, escolhaMin: 1,  escolhaMax: 50, apiNome: 'lotomania',      trevos: false },
-        'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  escolhaMin: 6,  escolhaMax: 12, apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2 }
+        // Lotomania: escolhe 50 números de 00 a 99
+        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, escolhaMin: 50, escolhaMax: 50, apiNome: 'lotomania',      trevos: false },
+        // +Milionária: 6-12 números de 01-50 + 2-6 trevos de 1-6
+        'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  escolhaMin: 6,  escolhaMax: 12, apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2, trevosEscolhaMin:2, trevosEscolhaMax:6 }
     },
     _lastPrevisoes: [],
     _lastValidacao: null,
@@ -171,6 +175,7 @@ const App = {
         try {
             container.innerHTML = '<p style="color:#888;text-align:center;">Executando análise com 8 modelos de IA...</p>';
             const data = await this.apiRequest(`/api/analises/completa?jogo_slug=${this.currentGame}`);
+            const cfg = this.jogosConfig[this.currentGame];
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
                     <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_concursos}</p>
@@ -184,8 +189,20 @@ const App = {
                     <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.modelos_usados?.length || 8}</p>
                     <p style="color:#888;font-size:13px;">Modelos de IA</p>
                 </div>
-            </div>
-            <h3 style="color:#e0e0e0;margin-bottom:12px;">🔥 Top 15 Números Quentes</h3>
+            </div>`;
+
+            // Info das regras do jogo atual
+            const regrasInfo = {
+                'mega-sena': 'Escolha 6 números de 01 a 60. Prêmio com 6, 5 ou 4 acertos.',
+                'lotofacil': 'Marque 15 a 20 números de 01 a 25. Prêmio com 11 a 15 acertos.',
+                'lotomania': 'Escolha 50 números de 00 a 99. Prêmio com 20, 19, 18, 17, 16, 15 ou 0 acertos.',
+                'mais-milionaria': 'Escolha 6-12 números de 01 a 50 + 2-6 trevos de 1 a 6. 10 faixas de premiação.'
+            };
+            html += `<div style="background:#16213e;padding:12px 16px;border-radius:8px;margin-bottom:20px;border-left:4px solid #00d4ff;">
+                <p style="color:#00d4ff;font-size:13px;margin:0;">📋 ${regrasInfo[this.currentGame] || ''}</p>
+            </div>`;
+
+            html += `<h3 style="color:#e0e0e0;margin-bottom:12px;">🔥 Top 15 Números Quentes</h3>
             <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;">`;
             for (const n of (data.top_quentes || [])) {
                 const cor = n.classificacao === 'quente' ? '#e74c3c' : n.classificacao === 'morno' ? '#f39c12' : '#3498db';
@@ -226,8 +243,9 @@ const App = {
         const container = document.getElementById('previsoes-content');
         if (!container) return;
         const qtd = parseInt(document.getElementById('qtd-previsoes')?.value || '5');
+        const cfg = this.jogosConfig[this.currentGame];
         try {
-            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando previsões com ensemble de 8 modelos...</p>';
+            container.innerHTML = `<p style="color:#888;text-align:center;">Gerando previsões de ${cfg.escolha} números com ensemble de 8 modelos...</p>`;
             const data = await this.apiRequest('/api/previsoes/gerar', {
                 method: 'POST',
                 body: JSON.stringify({ jogo_slug: this.currentGame, quantidade_jogos: qtd })
@@ -245,15 +263,25 @@ const App = {
                     <p style="color:#888;font-size:13px;">Concursos Analisados</p>
                 </div>
             </div>`;
+
+            // Verificar se a quantidade de números está correta
             html += '<div style="display:grid;gap:16px;">';
             data.previsoes?.forEach((p, i) => {
-                const nums = this.parseArray(p.numeros).map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${String(n).padStart(2,'0')}</span>`).join(' ');
+                const numerosArr = this.parseArray(p.numeros);
                 const trevosArr = this.parseArray(p.trevos);
+
+                // Alerta se quantidade de números não bate com a regra
+                let alertaQtd = '';
+                if (numerosArr.length !== cfg.escolha) {
+                    alertaQtd = `<p style="color:#f39c12;font-size:11px;margin-top:4px;">⚠️ Gerado ${numerosArr.length} números (esperado: ${cfg.escolha}). O backend precisa ser ajustado.</p>`;
+                }
+
+                const nums = numerosArr.map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${String(n).padStart(2,'0')}</span>`).join(' ');
                 const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${t}</span>`).join(' ') : '';
                 const confCor = p.confianca > 70 ? '#27ae60' : p.confianca > 50 ? '#f39c12' : '#e74c3c';
                 html += `<div style="background:#1a1a2e;padding:20px;border-radius:12px;border:1px solid #333;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                        <h4 style="color:#e0e0e0;margin:0;">Jogo ${i+1}</h4>
+                        <h4 style="color:#e0e0e0;margin:0;">Jogo ${i+1} <span style="color:#888;font-size:12px;font-weight:normal;">(${numerosArr.length} números)</span></h4>
                         <div style="display:flex;align-items:center;gap:10px;">
                             <span style="background:${confCor};color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;">${p.confianca}%</span>
                             <button onclick="App.salvarJogoDaPrevisao(${i})" style="background:#00d4ff;color:#0d0d1a;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" title="Salvar em Meus Jogos">💾 Salvar</button>
@@ -261,6 +289,7 @@ const App = {
                     </div>
                     <div style="margin-bottom:8px;">${nums}${trevos}</div>
                     <p style="color:#888;font-size:12px;">Score: ${p.score}</p>
+                    ${alertaQtd}
                 </div>`;
             });
             html += '</div>';
@@ -287,6 +316,15 @@ const App = {
         const trevos  = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number) : [];
         if (numeros.length === 0 || numeros.some(isNaN)) {
             this.showNotification('Preencha os números corretamente', 'error');
+            return;
+        }
+        // Validar quantidade conforme regras
+        const cfg = this.jogosConfig[this.currentGame];
+        const minEsc = cfg.escolhaMin || cfg.escolha;
+        const maxEsc = cfg.escolhaMax || cfg.escolha;
+        if (numeros.length < minEsc || numeros.length > maxEsc) {
+            const rangeText = minEsc === maxEsc ? `exatamente ${minEsc}` : `de ${minEsc} a ${maxEsc}`;
+            this.showNotification(`${cfg.nome} exige ${rangeText} números. Você informou ${numeros.length}.`, 'error');
             return;
         }
         try {
@@ -738,14 +776,30 @@ const App = {
             const placeholders = {
                 'mega-sena': 'Ex: 04, 15, 23, 38, 45, 52',
                 'lotofacil': 'Ex: 01, 02, 03, 05, 07, 08, 10, 11, 13, 14, 17, 18, 20, 22, 25',
-                'lotomania': 'Ex: 00, 05, 12, 18, 23, 31, 37, 42, 49, 55, 61, 67, 73, 78, 84, 88, 90, 93, 96, 99 (até 50 números)',
+                'lotomania': 'Ex: 00, 05, 12, 18, 23, 31, 37, 42, 49, 55, 61, 67, 73, 78, 84, 88, 90, 93, 96, 99... (50 números)',
                 'mais-milionaria': 'Ex: 04, 15, 23, 28, 35, 42'
             };
             document.getElementById('mj-numeros').placeholder = placeholders[tipo] || '';
-            hint.textContent = `Separados por vírgula ou espaço. ${tipo === 'lotomania' ? 'Escolha de 1 a 50 números.' : ''}`;
+            const hintTexts = {
+                'mega-sena': 'Separados por vírgula ou espaço. Escolha exatamente 6 números.',
+                'lotofacil': 'Separados por vírgula ou espaço. Escolha de 15 a 20 números.',
+                'lotomania': 'Separados por vírgula ou espaço. Escolha exatamente 50 números de 00 a 99.',
+                'mais-milionaria': 'Separados por vírgula ou espaço. Escolha de 6 a 12 números.'
+            };
+            hint.textContent = hintTexts[tipo] || 'Separados por vírgula ou espaço.';
         }
         if (trevosContainer) {
             trevosContainer.style.display = cfg.trevos ? 'block' : 'none';
+            // Atualizar label dos trevos para +Milionária
+            if (cfg.trevos) {
+                const trevosLabel = document.getElementById('mj-trevos-label');
+                if (trevosLabel) {
+                    const tMinEsc = cfg.trevosEscolhaMin || cfg.trevosEscolha || 2;
+                    const tMaxEsc = cfg.trevosEscolhaMax || cfg.trevosEscolha || 2;
+                    const tRange = tMinEsc === tMaxEsc ? `${tMinEsc} trevos` : `${tMinEsc} a ${tMaxEsc} trevos`;
+                    trevosLabel.textContent = `Trevos (${tRange} de ${cfg.trevosMin} a ${cfg.trevosMax})`;
+                }
+            }
         }
     },
 
@@ -770,8 +824,11 @@ const App = {
             return { valido: false, msg: 'Há números repetidos.' };
         }
         if (cfg.trevos) {
-            if (!trevos || trevos.length !== cfg.trevosEscolha) {
-                return { valido: false, msg: `Insira exatamente ${cfg.trevosEscolha} trevos.` };
+            const tMinEsc = cfg.trevosEscolhaMin || cfg.trevosEscolha || 2;
+            const tMaxEsc = cfg.trevosEscolhaMax || cfg.trevosEscolha || 2;
+            if (!trevos || trevos.length < tMinEsc || trevos.length > tMaxEsc) {
+                const tRange = tMinEsc === tMaxEsc ? `exatamente ${tMinEsc}` : `de ${tMinEsc} a ${tMaxEsc}`;
+                return { valido: false, msg: `Insira ${tRange} trevos. Você colocou ${trevos?.length || 0}.` };
             }
             for (const t of trevos) {
                 if (isNaN(t) || t < cfg.trevosMin || t > cfg.trevosMax) {
@@ -974,6 +1031,7 @@ const App = {
                     <div style="flex:1;min-width:200px;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                             <strong style="color:#e0e0e0;font-size:15px;">${jogo.nome}</strong>
+                            <span style="color:#666;font-size:11px;">(${jogo.numeros.length} números)</span>
                         </div>
                         <div style="margin-bottom:6px;">${nums}${trevosHtml}</div>
                         <span style="color:#666;font-size:11px;">Atualizado: ${dataFormatada}</span>
