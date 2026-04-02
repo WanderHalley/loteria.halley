@@ -1,11 +1,7 @@
 // ============================================================
-// js/app.js - LotoQuant Frontend v3.1 (Completo + Corrigido)
-// Compatível com Backend API v3.2.0 (8 modelos de IA)
-// Data: 2026-04-02
+// js/app.js - LotoQuant Frontend v2.2 (+ Meus Jogos)
 // ============================================================
 const App = {
-
-    // ==================== ESTADO ====================
     currentPage: 'dashboard',
     currentGame: 'mega-sena',
     config: {
@@ -13,1148 +9,1106 @@ const App = {
         apiKey: localStorage.getItem('lotoquant_api_key') || ''
     },
     jogosConfig: {
-        'mega-sena':       { nome: 'Mega-Sena',    min: 1,  max: 60,  escolha: 6,  escolhaMin: 6,  escolhaMax: 6,  apiNome: 'megasena',       trevos: false },
-        'lotofacil':       { nome: 'Lotofácil',     min: 1,  max: 25,  escolha: 15, escolhaMin: 15, escolhaMax: 20, apiNome: 'lotofacil',      trevos: false },
-        'lotomania':       { nome: 'Lotomania',     min: 0,  max: 99,  escolha: 20, escolhaMin: 1,  escolhaMax: 50, apiNome: 'lotomania',      trevos: false },
-        'mais-milionaria': { nome: '+Milionária',   min: 1,  max: 50,  escolha: 6,  escolhaMin: 6,  escolhaMax: 12, apiNome: 'maismilionaria', trevos: true, trevosMin: 1, trevosMax: 6, trevosEscolha: 2 }
+        'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  apiNome: 'megasena',       trevos: false },
+        'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, apiNome: 'lotofacil',      trevos: false },
+        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, apiNome: 'lotomania',      trevos: false },
+        'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2 }
     },
+
+    // Armazena último resultado de previsões/validação/fechamento para "Salvar Jogo"
     _lastPrevisoes: [],
     _lastValidacao: null,
     _lastFechamento: [],
 
-    // ==================== HELPERS ====================
-    parseArray: function(val) {
+    // ========================================
+    // HELPER: Parse arrays que vem como string
+    // ========================================
+    parseArray(val) {
         if (!val) return [];
-        if (Array.isArray(val)) return val.map(function(n) { return parseInt(n, 10); }).filter(function(n) { return !isNaN(n); });
+        if (Array.isArray(val)) return val;
         if (typeof val === 'string') {
-            val = val.trim();
-            if (!val) return [];
-            try {
-                var parsed = JSON.parse(val);
-                if (Array.isArray(parsed)) return parsed.map(function(n) { return parseInt(n, 10); }).filter(function(n) { return !isNaN(n); });
-            } catch (e) { /* not JSON */ }
-            var parts = val.split(/[,;\s]+/).filter(function(p) { return p.length > 0; });
-            return parts.map(function(n) { return parseInt(n, 10); }).filter(function(n) { return !isNaN(n); });
+            try { return JSON.parse(val); } catch(e) { return []; }
         }
-        if (typeof val === 'number' && !isNaN(val)) return [val];
         return [];
     },
 
-    formatNumber: function(n) {
-        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-        return String(n);
+    // ========================================
+    // MEUS JOGOS: Storage
+    // ========================================
+    getMeusJogos() {
+        try {
+            return JSON.parse(localStorage.getItem('lotoquant_meus_jogos') || '[]');
+        } catch(e) { return []; }
     },
-
-    formatPercent: function(v) {
-        if (v == null || isNaN(v)) return '0%';
-        return (v * 100).toFixed(1) + '%';
-    },
-
-    getScoreColor: function(score) {
-        if (score >= 0.7) return '#27ae60';
-        if (score >= 0.5) return '#f39c12';
-        return '#e74c3c';
-    },
-
-    getClassificacaoLabel: function(c) {
-        var map = { quente: '🔥 Quente', morno: '🌤 Morno', frio: '❄️ Frio' };
-        return map[c] || c || '';
-    },
-
-    pad2: function(n) {
-        return String(n).padStart(2, '0');
-    },
-
-    el: function(id) {
-        return document.getElementById(id);
-    },
-
-    // ==================== STORAGE (Meus Jogos - localStorage) ====================
-    getMeusJogos: function() {
-        try { return JSON.parse(localStorage.getItem('lotoquant_meus_jogos') || '[]'); }
-        catch (e) { return []; }
-    },
-
-    salvarMeusJogos: function(jogos) {
+    salvarMeusJogos(jogos) {
         localStorage.setItem('lotoquant_meus_jogos', JSON.stringify(jogos));
     },
-
-    gerarId: function() {
+    gerarId() {
         return 'jogo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     },
 
-    // ==================== INIT ====================
-    init: function() {
-        var self = this;
-        console.log('[LotoQuant] Inicializando v3.1...');
-        self.setupNavigation();
-        self.setupGameSelector();
-        self.setupButtons();
-        self.setupConfig();
-        self.setupMeusJogos();
-        self.showPage('dashboard');
-        if (self.config.backendUrl) {
-            self.loadDashboard();
-        } else {
-            var st = self.el('dashboard-status');
-            if (st) st.innerHTML = '<p style="color:#f39c12;">⚠️ Configure a URL do backend em ⚙️ Configurações para começar.</p>';
+    // ========================================
+    // INIT
+    // ========================================
+    init() {
+        this.setupNavigation();
+        this.setupGameSelector();
+        this.setupButtons();
+        this.setupConfig();
+        this.setupMeusJogos();
+        this.showPage('dashboard');
+        if (this.config.backendUrl) {
+            this.loadDashboard();
         }
-        console.log('[LotoQuant] Init completo.');
     },
 
-    // ==================== NAVIGATION ====================
-    setupNavigation: function() {
-        var self = this;
-        document.querySelectorAll('[data-page]').forEach(function(el) {
-            el.addEventListener('click', function(e) {
-                e.preventDefault();
-                var page = el.getAttribute('data-page');
-                self.showPage(page);
+    // ========================================
+    // NAVIGATION
+    // ========================================
+    setupNavigation() {
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.getAttribute('data-page');
+                this.showPage(page);
             });
         });
     },
-
-    showPage: function(page) {
+    showPage(page) {
         this.currentPage = page;
-        document.querySelectorAll('.page-content').forEach(function(p) {
-            p.style.display = 'none';
-        });
-        var target = this.el('page-' + page);
-        if (target) target.style.display = 'block';
-        document.querySelectorAll('[data-page]').forEach(function(el) {
-            if (el.getAttribute('data-page') === page) {
-                el.classList.add('active');
-            } else {
-                el.classList.remove('active');
-            }
-        });
-        if (page === 'meus-jogos') this.renderMeusJogos();
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+        document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(`page-${page}`)?.classList.add('active');
+        if (page === 'meus-jogos') {
+            this.renderMeusJogos();
+        }
     },
 
-    // ==================== GAME SELECTOR ====================
-    setupGameSelector: function() {
-        var self = this;
-        var sel = self.el('game-selector');
-        if (!sel) return;
-        sel.addEventListener('change', function() {
-            self.currentGame = sel.value;
-            if (self.config.backendUrl) self.loadDashboard();
-        });
-    },
-
-    // ==================== CONFIG ====================
-    setupConfig: function() {
-        var self = this;
-        var urlInput = self.el('config-backend-url');
-        var keyInput = self.el('config-api-key');
-        var btnSave  = self.el('btn-save-config');
-        if (urlInput) urlInput.value = self.config.backendUrl;
-        if (keyInput) keyInput.value = self.config.apiKey;
-        if (btnSave) {
-            btnSave.addEventListener('click', function() {
-                var url = (urlInput ? urlInput.value : '').trim().replace(/\/+$/, '');
-                var key = (keyInput ? keyInput.value : '').trim();
-                self.config.backendUrl = url;
-                self.config.apiKey = key;
-                localStorage.setItem('lotoquant_backend_url', url);
-                localStorage.setItem('lotoquant_api_key', key);
-                self.showNotification('Configuração salva!', 'success');
-                if (url) self.loadDashboard();
+    // ========================================
+    // GAME SELECTOR
+    // ========================================
+    setupGameSelector() {
+        const selector = document.getElementById('game-selector');
+        if (selector) {
+            selector.addEventListener('change', (e) => {
+                this.currentGame = e.target.value;
+                if (this.config.backendUrl) { this.loadDashboard(); }
             });
         }
     },
 
-    // ==================== BUTTONS ====================
-    setupButtons: function() {
-        var self = this;
-        var bindings = {
-            'btn-analise':            'executarAnalise',
-            'btn-previsoes':          'gerarPrevisoes',
-            'btn-validar':            'validarJogo',
-            'btn-fechamento':         'gerarFechamento',
-            'btn-backtest':           'executarBacktest',
-            'btn-importar-todos':     'importarHistoricoProxy',
-            'btn-importar-jogo':      'importarJogoIndividual',
-            'btn-atualizar':          'forcarAtualizacao',
-            'btn-alertas':            'verificarAlertas',
-            'btn-retreinar':          'retreinarModelos',
-            'btn-salvar-jogo':        'salvarJogoManual',
-            'btn-importar-previsao':  'importarPrevisaoParaMeusJogos',
-            'btn-importar-fechamento':'importarFechamentoParaMeusJogos',
-            'btn-limpar-jogos':       'limparMeusJogos'
-        };
-        Object.keys(bindings).forEach(function(id) {
-            var element = self.el(id);
-            var method  = bindings[id];
-            if (element && typeof self[method] === 'function') {
-                element.addEventListener('click', function() { self[method](); });
-            }
-        });
-    },
-
-    // ==================== API REQUEST ====================
-    apiRequest: function(endpoint, options) {
-        var self = this;
-        options = options || {};
-        if (!self.config.backendUrl) {
-            self.showNotification('Configure a URL do backend primeiro!', 'error');
-            return Promise.reject(new Error('Backend URL não configurada'));
-        }
-        var url = self.config.backendUrl + endpoint;
-        var headers = { 'Content-Type': 'application/json' };
-        if (self.config.apiKey) headers['x-api-key'] = self.config.apiKey;
-        var fetchOpts = Object.assign({}, options, {
-            headers: Object.assign({}, headers, options.headers || {})
-        });
-        return fetch(url, fetchOpts).then(function(resp) {
-            if (!resp.ok) {
-                return resp.json().catch(function() { return { detail: resp.statusText }; }).then(function(errBody) {
-                    throw new Error(errBody.detail || 'Erro ' + resp.status);
-                });
-            }
-            return resp.json();
-        });
-    },
-
-    // ==================== HELPERS: último concurso ====================
-    getUltimoConcursoSalvo: function(jogo_slug) {
-        return this.apiRequest('/api/resultados/?jogo_slug=' + jogo_slug + '&limit=1').then(function(data) {
-            var resultados = data.resultados || [];
-            var concurso = resultados.length > 0 ? (resultados[0].concurso || 0) : 0;
-            var total = data.total || 0;
-            return { concurso: concurso, total: total };
-        }).catch(function() {
-            return { concurso: 0, total: 0 };
-        });
-    },
-
-    getUltimoConcursoCaixa: function(apiNome) {
-        return fetch('https://servicebus2.caixa.gov.br/portaldeloterias/api/' + apiNome + '/').then(function(resp) {
-            if (!resp.ok) return 0;
-            return resp.json().then(function(d) { return d.numero || 0; });
-        }).catch(function() { return 0; });
-    },
-
-    // ==================== DASHBOARD ====================
-    loadDashboard: function() {
-        var self = this;
-        var statusEl = self.el('dashboard-status');
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Carregando dados do Supabase...</p>';
-
-        var healthPromise = self.apiRequest('/health');
-        var salvoPromise  = self.getUltimoConcursoSalvo(self.currentGame);
-        var rankingPromise = self.apiRequest('/api/analises/ranking?jogo_slug=' + self.currentGame).catch(function() { return null; });
-
-        Promise.all([healthPromise, salvoPromise, rankingPromise]).then(function(results) {
-            var health  = results[0];
-            var salvo   = results[1];
-            var ranking = results[2];
-            var cfg = self.jogosConfig[self.currentGame] || {};
-            var modelos = health.modelos || [];
-
-            var html = '';
-            // Cards
-            html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">';
-            html += '<div style="background:#1a1a2e;padding:16px;border-radius:12px;border:1px solid #333;">';
-            html += '  <div style="color:#888;font-size:12px;">Status Backend</div>';
-            html += '  <div style="color:#27ae60;font-size:18px;font-weight:bold;">✅ v' + (health.version || '?') + '</div>';
-            html += '</div>';
-            html += '<div style="background:#1a1a2e;padding:16px;border-radius:12px;border:1px solid #333;">';
-            html += '  <div style="color:#888;font-size:12px;">Modelos IA</div>';
-            html += '  <div style="color:#00d4ff;font-size:18px;font-weight:bold;">' + modelos.length + ' ativos</div>';
-            html += '</div>';
-            html += '<div style="background:#1a1a2e;padding:16px;border-radius:12px;border:1px solid #333;">';
-            html += '  <div style="color:#888;font-size:12px;">' + (cfg.nome || self.currentGame) + '</div>';
-            html += '  <div style="color:#f39c12;font-size:18px;font-weight:bold;">' + self.formatNumber(salvo.total) + ' concursos</div>';
-            html += '  <div style="color:#666;font-size:11px;">Último: #' + salvo.concurso + '</div>';
-            html += '</div>';
-            html += '<div style="background:#1a1a2e;padding:16px;border-radius:12px;border:1px solid #333;">';
-            html += '  <div style="color:#888;font-size:12px;">Dados</div>';
-            html += '  <div style="color:#9b59b6;font-size:18px;font-weight:bold;">Supabase ☁️</div>';
-            html += '  <div style="color:#666;font-size:11px;">Persistentes na nuvem</div>';
-            html += '</div>';
-            html += '</div>';
-
-            // Top 10
-            if (ranking && ranking.ranking && ranking.ranking.length > 0) {
-                var top10 = ranking.ranking.slice(0, 10);
-                html += '<h3 style="color:#00d4ff;margin-bottom:12px;">🔥 Top 10 Números - ' + (cfg.nome || self.currentGame) + '</h3>';
-                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">';
-                for (var i = 0; i < top10.length; i++) {
-                    var n = top10[i];
-                    var color = self.getScoreColor(n.score);
-                    html += '<div style="background:#1a1a2e;border:2px solid ' + color + ';border-radius:50%;width:56px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;">';
-                    html += '  <span style="color:#fff;font-weight:bold;font-size:16px;">' + self.pad2(n.numero) + '</span>';
-                    html += '  <span style="color:' + color + ';font-size:10px;">' + (n.score * 100).toFixed(0) + '%</span>';
-                    html += '</div>';
-                }
-                html += '</div>';
-            }
-
-            // Modelos
-            var modelosNomes = {
-                frequencia: 'Frequência', atraso: 'Atraso', padrao: 'Padrões',
-                distribuicao: 'Distribuição', lstm: 'LSTM', xgboost: 'XGBoost',
-                monte_carlo: 'Monte Carlo', bayesiano: 'Bayesiano'
-            };
-            html += '<h3 style="color:#00d4ff;margin-bottom:8px;">🤖 ' + modelos.length + ' Modelos de IA</h3>';
-            html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">';
-            for (var m = 0; m < modelos.length; m++) {
-                html += '<span style="background:#16213e;color:#00d4ff;padding:6px 12px;border-radius:20px;font-size:12px;">' + (modelosNomes[modelos[m]] || modelos[m]) + '</span>';
-            }
-            html += '</div>';
-
-            if (statusEl) statusEl.innerHTML = html;
-        }).catch(function(err) {
-            if (statusEl) statusEl.innerHTML = '<p style="color:#e74c3c;">❌ Erro: ' + err.message + '</p>';
-        });
-    },
-
-    // ==================== ANÁLISE ====================
-    executarAnalise: function() {
-        var self = this;
-        var statusEl = self.el('analise-resultado');
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Executando análise com 8 modelos de IA...</p>';
-
-        self.apiRequest('/api/analises/completa?jogo_slug=' + self.currentGame).then(function(data) {
-            var cfg = self.jogosConfig[self.currentGame] || {};
-            var html = '<h3 style="color:#00d4ff;">Análise Completa - ' + (cfg.nome || self.currentGame) + '</h3>';
-            html += '<p>Concursos analisados: <strong>' + (data.total_concursos || '?') + '</strong> | Último: <strong>#' + (data.ultimo_concurso || '?') + '</strong></p>';
-
-            // Ranking table
-            var ranking = data.ranking || [];
-            if (ranking.length > 0) {
-                html += '<h4 style="color:#f39c12;">Ranking dos Números</h4>';
-                html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">';
-                html += '<tr style="background:#16213e;color:#00d4ff;">';
-                html += '<th style="padding:8px;">Nº</th><th>Score</th><th>Class.</th><th>Freq.G</th><th>Freq.R</th><th>Atraso</th>';
-                html += '<th>Freq</th><th>Atr</th><th>Pad</th><th>Dist</th><th>LSTM</th><th>XGB</th><th>MC</th><th>Bay</th>';
-                html += '</tr>';
-                for (var i = 0; i < ranking.length; i++) {
-                    var n = ranking[i];
-                    var sc = n.scores_modelos || {};
-                    var color = self.getScoreColor(n.score);
-                    html += '<tr style="border-bottom:1px solid #333;">';
-                    html += '<td style="padding:6px;font-weight:bold;color:#fff;">' + self.pad2(n.numero) + '</td>';
-                    html += '<td style="color:' + color + ';font-weight:bold;">' + (n.score * 100).toFixed(1) + '%</td>';
-                    html += '<td>' + self.getClassificacaoLabel(n.classificacao) + '</td>';
-                    html += '<td>' + self.formatPercent(n.frequencia_geral) + '</td>';
-                    html += '<td>' + self.formatPercent(n.frequencia_recente) + '</td>';
-                    html += '<td>' + (n.atraso != null ? n.atraso : '-') + '</td>';
-                    var modKeys = ['frequencia','atraso','padrao','distribuicao','lstm','xgboost','monte_carlo','bayesiano'];
-                    for (var k = 0; k < modKeys.length; k++) {
-                        var v = sc[modKeys[k]];
-                        html += '<td>' + (v != null ? (v * 100).toFixed(0) : '-') + '</td>';
-                    }
-                    html += '</tr>';
-                }
-                html += '</table></div>';
-            }
-
-            // Pares frequentes
-            var pares = data.pares_frequentes;
-            if (pares && typeof pares === 'object') {
-                html += '<h4 style="color:#f39c12;margin-top:16px;">Pares Mais Frequentes</h4>';
-                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-                var paresEntries = Array.isArray(pares) ? pares : Object.entries(pares);
-                var count = 0;
-                if (Array.isArray(pares)) {
-                    for (var p = 0; p < pares.length && p < 20; p++) {
-                        html += '<span style="background:#16213e;color:#00d4ff;padding:4px 10px;border-radius:12px;font-size:12px;">' + (pares[p].par || '?') + ': ' + (pares[p].frequencia || pares[p].count || '?') + 'x</span>';
-                    }
+    // ========================================
+    // CONFIG
+    // ========================================
+    setupConfig() {
+        const urlInput = document.getElementById('config-backend-url');
+        const keyInput = document.getElementById('config-api-key');
+        const saveBtn  = document.getElementById('btn-save-config');
+        if (urlInput) urlInput.value = this.config.backendUrl;
+        if (keyInput) keyInput.value = this.config.apiKey;
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                const url = document.getElementById('config-backend-url')?.value?.trim().replace(/\/+$/, '');
+                const key = document.getElementById('config-api-key')?.value?.trim();
+                if (url) {
+                    this.config.backendUrl = url;
+                    this.config.apiKey = key || '';
+                    localStorage.setItem('lotoquant_backend_url', url);
+                    localStorage.setItem('lotoquant_api_key', key || '');
+                    this.showNotification('Configuração salva com sucesso!', 'success');
+                    this.loadDashboard();
                 } else {
-                    var keys = Object.keys(pares);
-                    for (var pk = 0; pk < keys.length && pk < 20; pk++) {
-                        html += '<span style="background:#16213e;color:#00d4ff;padding:4px 10px;border-radius:12px;font-size:12px;">' + keys[pk] + ': ' + pares[keys[pk]] + 'x</span>';
-                    }
+                    this.showNotification('Preencha a URL do backend', 'error');
                 }
-                html += '</div>';
-            }
-
-            // Modelos e pesos
-            if (data.modelos_usados) {
-                html += '<h4 style="color:#f39c12;margin-top:16px;">Modelos e Pesos</h4>';
-                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-                var pesos = data.pesos || {};
-                for (var mi = 0; mi < data.modelos_usados.length; mi++) {
-                    var mod = data.modelos_usados[mi];
-                    var peso = pesos[mod] != null ? (pesos[mod] * 100).toFixed(0) + '%' : '?';
-                    html += '<span style="background:#16213e;color:#9b59b6;padding:4px 10px;border-radius:12px;font-size:12px;">' + mod + ': ' + peso + '</span>';
-                }
-                html += '</div>';
-            }
-
-            if (statusEl) statusEl.innerHTML = html;
-        }).catch(function(err) {
-            if (statusEl) statusEl.innerHTML = '<p style="color:#e74c3c;">❌ ' + err.message + '</p>';
-        });
-    },
-
-    // ==================== PREVISÕES ====================
-    gerarPrevisoes: function() {
-        var self = this;
-        var statusEl = self.el('previsoes-resultado');
-        var qtdInput = self.el('previsoes-quantidade');
-        var qtd = parseInt((qtdInput ? qtdInput.value : '5'), 10) || 5;
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Gerando previsões com 8 modelos de IA...</p>';
-
-        self.apiRequest('/api/previsoes/gerar', {
-            method: 'POST',
-            body: JSON.stringify({ jogo_slug: self.currentGame, quantidade_jogos: qtd })
-        }).then(function(data) {
-            self._lastPrevisoes = data.previsoes || [];
-            var cfg = self.jogosConfig[self.currentGame] || {};
-            var html = '<h3 style="color:#00d4ff;">Previsões - ' + (cfg.nome || self.currentGame) + '</h3>';
-            html += '<p>Concursos analisados: <strong>' + (data.total_concursos_analisados || '?') + '</strong> | Modelos: <strong>' + ((data.modelos_usados || []).length) + '</strong></p>';
-
-            if (self._lastPrevisoes.length === 0) {
-                html += '<p style="color:#f39c12;">Nenhuma previsão gerada.</p>';
-            } else {
-                for (var i = 0; i < self._lastPrevisoes.length; i++) {
-                    var p = self._lastPrevisoes[i];
-                    var numeros = self.parseArray(p.numeros);
-                    var trevos = self.parseArray(p.trevos);
-                    var confianca = p.confianca != null ? p.confianca : p.confidence;
-                    var confiancaPct = confianca != null ? (confianca * 100).toFixed(1) : '?';
-                    var color = confianca != null ? self.getScoreColor(confianca) : '#888';
-
-                    html += '<div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:16px;margin-bottom:12px;">';
-                    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-                    html += '<span style="color:#00d4ff;font-weight:bold;">Jogo ' + (i + 1) + '</span>';
-                    html += '<span style="color:' + color + ';font-weight:bold;font-size:18px;">' + confiancaPct + '%</span>';
-                    html += '</div>';
-                    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
-                    for (var j = 0; j < numeros.length; j++) {
-                        html += '<span style="background:#16213e;color:#fff;border:1px solid #00d4ff;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-weight:bold;">' + self.pad2(numeros[j]) + '</span>';
-                    }
-                    for (var t = 0; t < trevos.length; t++) {
-                        html += '<span style="background:#f39c12;color:#000;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-weight:bold;">☘' + trevos[t] + '</span>';
-                    }
-                    html += '</div>';
-                    if (p.estrategia) {
-                        html += '<div style="color:#888;font-size:11px;">Estratégia: ' + p.estrategia + '</div>';
-                    }
-                    html += '</div>';
-                }
-            }
-            if (statusEl) statusEl.innerHTML = html;
-        }).catch(function(err) {
-            if (statusEl) statusEl.innerHTML = '<p style="color:#e74c3c;">❌ ' + err.message + '</p>';
-        });
-    },
-
-    // ==================== VALIDAÇÃO ====================
-    validarJogo: function() {
-        var self = this;
-        var statusEl = self.el('validacao-resultado');
-        var inputEl  = self.el('validacao-numeros');
-        var trevosEl = self.el('validacao-trevos');
-        var numeros = self.parseArray(inputEl ? inputEl.value : '');
-        var trevos  = self.parseArray(trevosEl ? trevosEl.value : '');
-
-        if (numeros.length === 0) {
-            self.showNotification('Digite os números para validar!', 'error');
-            return;
-        }
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Validando jogo...</p>';
-
-        self.apiRequest('/api/validacao/validar-jogo', {
-            method: 'POST',
-            body: JSON.stringify({ jogo_slug: self.currentGame, numeros: numeros, trevos: trevos })
-        }).then(function(data) {
-            self._lastValidacao = data;
-            var score = data.score_geral != null ? data.score_geral : (data.score || data.confianca || 0);
-            var color = self.getScoreColor(score);
-            var html = '<h3 style="color:#00d4ff;">Resultado da Validação</h3>';
-            html += '<div style="text-align:center;margin:20px 0;">';
-            html += '<div style="font-size:48px;font-weight:bold;color:' + color + ';">' + (score * 100).toFixed(1) + '%</div>';
-            html += '<div style="color:#888;">Confiança Geral</div>';
-            html += '</div>';
-
-            // Números avaliados
-            var detalhes = data.numeros_detalhes || data.detalhes || [];
-            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px;">';
-            for (var i = 0; i < numeros.length; i++) {
-                var nd = null;
-                for (var d = 0; d < detalhes.length; d++) {
-                    if (detalhes[d].numero === numeros[i]) { nd = detalhes[d]; break; }
-                }
-                var nScore = nd ? (nd.score || nd.confianca || 0) : 0;
-                var nColor = self.getScoreColor(nScore);
-                html += '<div style="text-align:center;">';
-                html += '<div style="background:#1a1a2e;border:2px solid ' + nColor + ';border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">';
-                html += '<span style="color:#fff;font-weight:bold;">' + self.pad2(numeros[i]) + '</span>';
-                html += '</div>';
-                html += '<div style="color:' + nColor + ';font-size:10px;margin-top:2px;">' + (nScore * 100).toFixed(0) + '%</div>';
-                html += '</div>';
-            }
-            html += '</div>';
-
-            if (data.classificacao) {
-                html += '<p style="text-align:center;font-size:16px;">' + self.getClassificacaoLabel(data.classificacao) + '</p>';
-            }
-
-            // Scores por modelo
-            var sm = data.scores_modelos || data.modelos || {};
-            var smKeys = Object.keys(sm);
-            if (smKeys.length > 0) {
-                var modelosNomes = {
-                    frequencia: 'Frequência', atraso: 'Atraso', padrao: 'Padrões',
-                    distribuicao: 'Distribuição', lstm: 'LSTM', xgboost: 'XGBoost',
-                    monte_carlo: 'Monte Carlo', bayesiano: 'Bayesiano'
-                };
-                html += '<h4 style="color:#f39c12;margin-top:16px;">Scores por Modelo</h4>';
-                html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">';
-                for (var s = 0; s < smKeys.length; s++) {
-                    var mk = smKeys[s];
-                    var mv = sm[mk];
-                    var mc = self.getScoreColor(mv);
-                    html += '<div style="background:#1a1a2e;padding:8px;border-radius:8px;border-left:3px solid ' + mc + ';">';
-                    html += '<div style="color:#888;font-size:11px;">' + (modelosNomes[mk] || mk) + '</div>';
-                    html += '<div style="color:' + mc + ';font-weight:bold;">' + (mv * 100).toFixed(1) + '%</div>';
-                    html += '</div>';
-                }
-                html += '</div>';
-            }
-
-            if (statusEl) statusEl.innerHTML = html;
-        }).catch(function(err) {
-            if (statusEl) statusEl.innerHTML = '<p style="color:#e74c3c;">❌ ' + err.message + '</p>';
-        });
-    },
-
-    // ==================== FECHAMENTO ====================
-    gerarFechamento: function() {
-        var self = this;
-        var statusEl   = self.el('fechamento-resultado');
-        var garantiaEl = self.el('fechamento-garantia');
-        var universoEl = self.el('fechamento-universo');
-        var garantia = garantiaEl ? garantiaEl.value : 'quadra';
-        var universo = parseInt(universoEl ? universoEl.value : '15', 10) || 15;
-
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Gerando fechamento...</p>';
-
-        self.apiRequest('/api/previsoes/fechamento?jogo_slug=' + self.currentGame + '&garantia=' + garantia + '&tamanho_universo=' + universo, {
-            method: 'POST'
-        }).then(function(data) {
-            self._lastFechamento = data.jogos || [];
-            var cfg = self.jogosConfig[self.currentGame] || {};
-            var html = '<h3 style="color:#00d4ff;">Fechamento - ' + (cfg.nome || self.currentGame) + '</h3>';
-            html += '<p>Garantia: <strong>' + (data.garantia || garantia) + '</strong> | Universo: <strong>' + (data.tamanho_universo || universo) + '</strong> | Total: <strong>' + (data.total_jogos || self._lastFechamento.length) + ' jogos</strong></p>';
-
-            if (data.universo && data.universo.length > 0) {
-                html += '<h4 style="color:#f39c12;">Universo de Números</h4>';
-                html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">';
-                for (var u = 0; u < data.universo.length; u++) {
-                    html += '<span style="background:#16213e;color:#00d4ff;border:1px solid #00d4ff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;">' + self.pad2(data.universo[u]) + '</span>';
-                }
-                html += '</div>';
-            }
-
-            if (data.cobertura != null) {
-                var cobText = typeof data.cobertura === 'number' ? (data.cobertura * 100).toFixed(1) + '%' : String(data.cobertura);
-                html += '<p>Cobertura: <strong style="color:#27ae60;">' + cobText + '</strong></p>';
-            }
-
-            if (self._lastFechamento.length > 0) {
-                html += '<h4 style="color:#f39c12;">Jogos Gerados</h4>';
-                for (var f = 0; f < self._lastFechamento.length; f++) {
-                    var j = self._lastFechamento[f];
-                    var nums = self.parseArray(j.numeros);
-                    var jScore = j.score || j.confianca || 0;
-                    var jColor = self.getScoreColor(jScore);
-                    html += '<div style="background:#1a1a2e;border:1px solid #333;border-radius:8px;padding:10px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
-                    html += '<span style="color:#888;min-width:55px;">Jogo ' + (f + 1) + '</span>';
-                    for (var fn = 0; fn < nums.length; fn++) {
-                        html += '<span style="background:#16213e;color:#fff;border:1px solid ' + jColor + ';border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;">' + self.pad2(nums[fn]) + '</span>';
-                    }
-                    html += '<span style="color:' + jColor + ';font-weight:bold;margin-left:auto;">' + (jScore * 100).toFixed(1) + '%</span>';
-                    html += '</div>';
-                }
-            } else {
-                html += '<p style="color:#f39c12;">Nenhum jogo gerado.</p>';
-            }
-            if (statusEl) statusEl.innerHTML = html;
-        }).catch(function(err) {
-            if (statusEl) statusEl.innerHTML = '<p style="color:#e74c3c;">❌ ' + err.message + '</p>';
-        });
-    },
-
-    // ==================== BACKTESTING ====================
-    executarBacktest: function() {
-        var self = this;
-        var statusEl    = self.el('backtest-resultado');
-        var concursosEl = self.el('backtest-concursos');
-        var cartelasEl  = self.el('backtest-cartelas');
-        var concursos = parseInt(concursosEl ? concursosEl.value : '50', 10) || 50;
-        var cartelas  = parseInt(cartelasEl ? cartelasEl.value : '3', 10) || 3;
-
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Executando backtesting... Pode levar alguns segundos.</p>';
-
-        self.apiRequest('/api/backtesting/executar', {
-            method: 'POST',
-            body: JSON.stringify({ jogo_slug: self.currentGame, concursos_teste: concursos, cartelas_por_concurso: cartelas })
-        }).then(function(data) {
-            var html = '<h3 style="color:#00d4ff;">Backtesting - ' + (self.jogosConfig[self.currentGame] || {}).nome + '</h3>';
-            html += '<p>Concursos testados: <strong>' + (data.concursos_testados || concursos) + '</strong></p>';
-
-            var resumo = data.resultados_resumo || data.resumo || {};
-            var rKeys = Object.keys(resumo);
-            if (rKeys.length > 0) {
-                html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0;">';
-                for (var r = 0; r < rKeys.length; r++) {
-                    var rv = resumo[rKeys[r]];
-                    html += '<div style="background:#1a1a2e;padding:12px;border-radius:8px;border:1px solid #333;">';
-                    html += '<div style="color:#888;font-size:12px;">' + rKeys[r] + '</div>';
-                    html += '<div style="color:#00d4ff;font-size:20px;font-weight:bold;">' + (typeof rv === 'number' ? rv.toFixed(2) : rv) + '</div>';
-                    html += '</div>';
-                }
-                html += '</div>';
-            }
-
-            var dist = data.acertos_distribuicao || data.distribuicao || {};
-            var dKeys = Object.keys(dist);
-            if (dKeys.length > 0) {
-                html += '<h4 style="color:#f39c12;">Distribuição de Acertos</h4>';
-                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-                for (var di = 0; di < dKeys.length; di++) {
-                    html += '<div style="background:#16213e;padding:8px 16px;border-radius:8px;text-align:center;">';
-                    html += '<div style="color:#00d4ff;font-size:18px;font-weight:bold;">' + dist[dKeys[di]] + '</div>';
-                    html += '<div style="color:#888;font-size:11px;">' + dKeys[di] + ' acertos</div>';
-                    html += '</div>';
-                }
-                html += '</div>';
-            }
-            if (statusEl) statusEl.innerHTML = html;
-        }).catch(function(err) {
-            if (statusEl) statusEl.innerHTML = '<p style="color:#e74c3c;">❌ ' + err.message + '</p>';
-        });
-    },
-
-    // ==================== IMPORTAÇÃO INTELIGENTE ====================
-    importarUmJogo: function(jogo, statusEl, prevHtml) {
-        var self = this;
-        var cfg = self.jogosConfig[jogo];
-        if (!cfg) return Promise.resolve({ html: prevHtml || '', inseridos: 0 });
-
-        var apiNome = cfg.apiNome;
-        var caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
-        var html = prevHtml || '';
-        var inseridos = 0;
-        var erros = 0;
-
-        function update(s) { if (statusEl) statusEl.innerHTML = s; }
-
-        return self.getUltimoConcursoSalvo(jogo).then(function(salvo) {
-            var ultimoSalvo = salvo.concurso;
-            var totalSalvo = salvo.total;
-
-            return self.getUltimoConcursoCaixa(apiNome).then(function(ultimoCaixa) {
-                if (!ultimoCaixa) {
-                    html += '<p style="color:#f39c12;">⚠️ ' + cfg.nome + ': API da Caixa indisponível</p>';
-                    update(html);
-                    return { html: html, inseridos: 0 };
-                }
-                if (ultimoSalvo && ultimoSalvo >= ultimoCaixa) {
-                    html += '<p style="color:#27ae60;">✅ ' + cfg.nome + ': já atualizado (' + totalSalvo + ' concursos, último #' + ultimoSalvo + ')</p>';
-                    update(html);
-                    return { html: html, inseridos: 0 };
-                }
-
-                var concursoInicial = ultimoSalvo > 0 ? ultimoSalvo + 1 : 1;
-                var totalParaImportar = ultimoCaixa - concursoInicial + 1;
-                html += '<p style="color:#00d4ff;">⏳ ' + cfg.nome + ': importando ' + totalParaImportar + ' concursos (#' + concursoInicial + ' a #' + ultimoCaixa + ')...</p>';
-                update(html);
-
-                var BATCH_SIZE = 30;
-                var queue = [];
-                for (var start = concursoInicial; start <= ultimoCaixa; start += BATCH_SIZE) {
-                    queue.push({ start: start, end: Math.min(start + BATCH_SIZE - 1, ultimoCaixa) });
-                }
-
-                var imported = 0;
-                function processQueue(idx) {
-                    if (idx >= queue.length) {
-                        // Finalizado
-                        var finalHtml = (prevHtml || '') + '<p style="color:#27ae60;">✅ ' + cfg.nome + ': ' + inseridos + ' novos concursos importados' + (erros > 0 ? ' (' + erros + ' erros)' : '') + '</p>';
-                        update(finalHtml);
-                        return Promise.resolve({ html: finalHtml, inseridos: inseridos });
-                    }
-
-                    var batch = queue[idx];
-                    var fetches = [];
-                    for (var c = batch.start; c <= batch.end; c++) {
-                        fetches.push(
-                            (function(num) {
-                                return fetch(caixaBase + '/' + apiNome + '/' + num).then(function(resp) {
-                                    if (!resp.ok) { erros++; return null; }
-                                    return resp.json();
-                                }).catch(function() { erros++; return null; });
-                            })(c)
-                        );
-                    }
-
-                    return Promise.all(fetches).then(function(results) {
-                        var batchData = [];
-                        for (var r = 0; r < results.length; r++) {
-                            var d = results[r];
-                            if (!d) continue;
-                            var numeros = (d.listaDezenas || d.dezenasSorteadasOrdemSorteio || []).map(function(x) { return parseInt(x, 10); });
-                            var trevos = (d.trevosSorteados || d.listaTrevos || []).map(function(x) { return parseInt(x, 10); });
-                            var premio = 0;
-                            if (d.listaRateioPremio && d.listaRateioPremio[0]) {
-                                premio = d.listaRateioPremio[0].valorPremio || 0;
-                            }
-                            if (numeros.length > 0) {
-                                batchData.push({
-                                    jogo_slug: jogo,
-                                    concurso: d.numero || (batch.start + r),
-                                    data_sorteio: d.dataApuracao || '',
-                                    numeros: numeros,
-                                    trevos: trevos,
-                                    premio_principal: premio,
-                                    acumulou: d.acumulado || false
-                                });
-                            }
-                        }
-
-                        if (batchData.length === 0) {
-                            imported += (batch.end - batch.start + 1);
-                            return processQueue(idx + 1);
-                        }
-
-                        return self.apiRequest('/api/importar-proxy', {
-                            method: 'POST',
-                            body: JSON.stringify({ jogo_slug: jogo, resultados: batchData })
-                        }).then(function(res) {
-                            inseridos += res.inseridos || batchData.length;
-                            erros += res.erros || 0;
-                        }).catch(function() {
-                            erros += batchData.length;
-                        }).then(function() {
-                            imported += (batch.end - batch.start + 1);
-                            var pct = Math.min(100, (imported / totalParaImportar * 100)).toFixed(0);
-                            var progressHtml = (prevHtml || '') + '<p style="color:#00d4ff;">⏳ ' + cfg.nome + ': ' + pct + '% (' + imported + '/' + totalParaImportar + ')</p>';
-                            update(progressHtml);
-                            return new Promise(function(resolve) { setTimeout(resolve, 80); });
-                        }).then(function() {
-                            return processQueue(idx + 1);
-                        });
-                    });
-                }
-
-                return processQueue(0);
-            });
-        }).catch(function(err) {
-            html += '<p style="color:#e74c3c;">❌ ' + cfg.nome + ': ' + err.message + '</p>';
-            update(html);
-            return { html: html, inseridos: 0 };
-        });
-    },
-
-    importarHistoricoProxy: function() {
-        var self = this;
-        var statusEl = self.el('importar-status') || self.el('dashboard-status');
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Verificando dados no Supabase...</p>';
-
-        var jogos = ['mega-sena', 'lotofacil', 'lotomania', 'mais-milionaria'];
-        var totalInseridos = 0;
-
-        function processJogo(idx, prevHtml) {
-            if (idx >= jogos.length) {
-                var finalMsg = totalInseridos === 0
-                    ? '<p style="color:#27ae60;font-weight:bold;margin-top:12px;">🎉 Todos os jogos já estão atualizados no Supabase!</p>'
-                    : '<p style="color:#27ae60;font-weight:bold;margin-top:12px;">🎉 Importação concluída: ' + totalInseridos + ' novos concursos!</p>';
-                var finalHtml = prevHtml + finalMsg;
-                if (statusEl) statusEl.innerHTML = finalHtml;
-                self.showNotification(totalInseridos > 0 ? totalInseridos + ' novos concursos importados!' : 'Tudo atualizado!', 'success');
-                return;
-            }
-            self.importarUmJogo(jogos[idx], statusEl, prevHtml).then(function(result) {
-                totalInseridos += result.inseridos;
-                processJogo(idx + 1, result.html);
             });
         }
-
-        processJogo(0, '');
     },
 
-    importarJogoIndividual: function() {
-        var self = this;
-        var statusEl = self.el('importar-status') || self.el('dashboard-status');
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Verificando...</p>';
-        self.importarUmJogo(self.currentGame, statusEl, '').then(function() {
-            self.showNotification('Verificação concluída!', 'success');
-        });
+    // ========================================
+    // BUTTONS
+    // ========================================
+    setupButtons() {
+        document.getElementById('btn-analise')?.addEventListener('click', () => this.executarAnalise());
+        document.getElementById('btn-previsoes')?.addEventListener('click', () => this.gerarPrevisoes());
+        document.getElementById('btn-validar')?.addEventListener('click', () => this.validarJogo());
+        document.getElementById('btn-fechamento')?.addEventListener('click', () => this.gerarFechamento());
+        document.getElementById('btn-backtest')?.addEventListener('click', () => this.executarBacktest());
+        document.getElementById('btn-alertas')?.addEventListener('click', () => this.verificarAlertas());
+        document.getElementById('btn-inserir')?.addEventListener('click', () => this.inserirResultado());
+        document.getElementById('btn-importar-todos')?.addEventListener('click', () => this.importarHistoricoProxy());
+        document.getElementById('btn-importar-jogo')?.addEventListener('click', () => this.importarJogoIndividual());
+        document.getElementById('btn-atualizar')?.addEventListener('click', () => this.forcarAtualizacao());
     },
 
-    forcarAtualizacao: function() {
-        var self = this;
-        var statusEl = self.el('dashboard-status');
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Verificando atualizações...</p>';
-
-        var jogos = ['mega-sena', 'lotofacil', 'lotomania', 'mais-milionaria'];
-        var totalInseridos = 0;
-
-        function processJogo(idx, prevHtml) {
-            if (idx >= jogos.length) {
-                if (statusEl) statusEl.innerHTML = prevHtml;
-                self.showNotification(totalInseridos > 0 ? totalInseridos + ' novos concursos!' : 'Tudo atualizado!', 'success');
-                self.loadDashboard();
-                return;
-            }
-            self.importarUmJogo(jogos[idx], statusEl, prevHtml).then(function(result) {
-                totalInseridos += result.inseridos;
-                processJogo(idx + 1, result.html);
-            });
+    // ========================================
+    // API REQUEST
+    // ========================================
+    async apiRequest(endpoint, options = {}) {
+        if (!this.config.backendUrl) {
+            this.showNotification('Configure a URL do backend primeiro!', 'error');
+            throw new Error('Backend URL não configurada');
         }
-
-        processJogo(0, '');
-    },
-
-    // ==================== ALERTAS ====================
-    verificarAlertas: function() {
-        var self = this;
-        var statusEl = self.el('alertas-resultado');
-        if (statusEl) statusEl.innerHTML = '<p style="color:#00d4ff;">⏳ Verificando alertas...</p>';
-
-        self.apiRequest('/api/alertas/verificar?jogo_slug=' + self.currentGame, { method: 'POST' }).then(function() {
-            return self.apiRequest('/api/alertas/?jogo_slug=' + self.currentGame + '&apenas_nao_lidos=true');
-        }).then(function(data) {
-            var alertas = data.alertas || (Array.isArray(data) ? data : []);
-            var html = '<h3 style="color:#00d4ff;">Alertas</h3>';
-            if (alertas.length === 0) {
-                html += '<p style="color:#27ae60;">✅ Nenhum alerta pendente.</p>';
-            } else {
-                for (var a = 0; a < alertas.length; a++) {
-                    var al = alertas[a];
-                    var typeColor = al.tipo === 'urgente' ? '#e74c3c' : (al.tipo === 'aviso' ? '#f39c12' : '#00d4ff');
-                    html += '<div style="background:#1a1a2e;border-left:3px solid ' + typeColor + ';padding:12px;border-radius:8px;margin-bottom:8px;">';
-                    html += '<div style="color:' + typeColor + ';font-weight:bold;">' + (al.titulo || al.tipo || 'Alerta') + '</div>';
-                    html += '<div style="color:#ccc;font-size:13px;">' + (al.mensagem || al.descricao || '') + '</div>';
-                    html += '</div>';
-                }
-            }
-            if (statusEl) statusEl.innerHTML = html;
-        }).catch(function(err) {
-            if (statusEl) statusEl.innerHTML = '<p style="color:#e74c3c;">❌ ' + err.message + '</p>';
-        });
-    },
-
-    // ==================== RETREINAR ====================
-    retreinarModelos: function() {
-        var self = this;
-        self.showNotification('Retreinando modelos...', 'info');
-        self.apiRequest('/api/analises/retreinar?jogo_slug=' + self.currentGame, { method: 'POST' }).then(function(data) {
-            self.showNotification(data.message || data.mensagem || 'Modelos retreinados!', 'success');
-        }).catch(function(err) {
-            self.showNotification('Erro: ' + err.message, 'error');
-        });
-    },
-
-    // ==================== MEUS JOGOS ====================
-    setupMeusJogos: function() {
-        var self = this;
-        var tipoSel = self.el('meus-jogos-tipo');
-        if (tipoSel) {
-            tipoSel.addEventListener('change', function() { self.atualizarModalPorTipo(); });
-            self.atualizarModalPorTipo();
+        const url = this.config.backendUrl + endpoint;
+        const headers = { 'Content-Type': 'application/json' };
+        if (this.config.apiKey) { headers['x-api-key'] = this.config.apiKey; }
+        const resp = await fetch(url, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            throw new Error(err.detail || `Erro ${resp.status}`);
         }
+        return resp.json();
     },
 
-    atualizarModalPorTipo: function() {
-        var self = this;
-        var tipoSel  = self.el('meus-jogos-tipo');
-        var labelEl  = self.el('meus-jogos-numeros-label');
-        var inputEl  = self.el('meus-jogos-numeros');
-        var trevosGr = self.el('meus-jogos-trevos-group');
-        if (!tipoSel) return;
-        var jogo = tipoSel.value;
-        var cfg = self.jogosConfig[jogo];
-        if (!cfg) return;
-
-        var minEsc = cfg.escolhaMin || cfg.escolha;
-        var maxEsc = cfg.escolhaMax || cfg.escolha;
-        var rangeText = minEsc === maxEsc ? minEsc + ' números' : minEsc + ' a ' + maxEsc + ' números';
-
-        if (labelEl) labelEl.textContent = 'Números (' + rangeText + ' de ' + self.pad2(cfg.min) + ' a ' + self.pad2(cfg.max) + '):';
-        if (inputEl) inputEl.placeholder = 'Ex: ' + cfg.min + ', ' + (cfg.min + 1) + ', ' + (cfg.min + 5) + '... (' + rangeText + ')';
-        if (trevosGr) trevosGr.style.display = cfg.trevos ? 'block' : 'none';
-    },
-
-    validarNumerosJogo: function(numeros, jogo) {
-        var cfg = this.jogosConfig[jogo];
-        if (!cfg) return { valido: false, erro: 'Jogo não suportado' };
-
-        var minEsc = cfg.escolhaMin || cfg.escolha;
-        var maxEsc = cfg.escolhaMax || cfg.escolha;
-
-        if (numeros.length < minEsc || numeros.length > maxEsc) {
-            var rangeText = minEsc === maxEsc ? 'exatamente ' + minEsc : 'de ' + minEsc + ' a ' + maxEsc;
-            return { valido: false, erro: cfg.nome + ' precisa de ' + rangeText + ' números. Você informou ' + numeros.length + '.' };
-        }
-        var fora = numeros.filter(function(n) { return n < cfg.min || n > cfg.max; });
-        if (fora.length > 0) {
-            return { valido: false, erro: 'Números fora do intervalo (' + cfg.min + '-' + cfg.max + '): ' + fora.join(', ') };
-        }
-        var unicos = {};
-        var dups = false;
-        for (var i = 0; i < numeros.length; i++) {
-            if (unicos[numeros[i]]) { dups = true; break; }
-            unicos[numeros[i]] = true;
-        }
-        if (dups) return { valido: false, erro: 'Há números duplicados.' };
-        return { valido: true };
-    },
-
-    salvarJogoManual: function() {
-        var self = this;
-        var tipoSel  = self.el('meus-jogos-tipo');
-        var inputEl  = self.el('meus-jogos-numeros');
-        var trevosEl = self.el('meus-jogos-trevos');
-        var nomeEl   = self.el('meus-jogos-nome');
-        var jogo = tipoSel ? tipoSel.value : self.currentGame;
-        var numeros = self.parseArray(inputEl ? inputEl.value : '');
-        var trevos = self.parseArray(trevosEl ? trevosEl.value : '');
-        var nome = (nomeEl ? nomeEl.value : '').trim();
-
-        var val = self.validarNumerosJogo(numeros, jogo);
-        if (!val.valido) {
-            self.showNotification(val.erro, 'error');
-            return;
-        }
-
-        var cfg = self.jogosConfig[jogo];
-        if (cfg && cfg.trevos && trevos.length !== (cfg.trevosEscolha || 2)) {
-            self.showNotification(cfg.nome + ' precisa de ' + (cfg.trevosEscolha || 2) + ' trevos.', 'error');
-            return;
-        }
-
-        var jogos = self.getMeusJogos();
-        jogos.push({
-            id: self.gerarId(),
-            jogo_slug: jogo,
-            nome: nome || 'Jogo Manual ' + (jogos.length + 1),
-            numeros: numeros.sort(function(a, b) { return a - b; }),
-            trevos: trevos.sort(function(a, b) { return a - b; }),
-            fonte: 'manual',
-            data: new Date().toISOString(),
-            confianca: null
-        });
-        self.salvarMeusJogos(jogos);
-        self.showNotification('Jogo salvo com sucesso!', 'success');
-        if (inputEl) inputEl.value = '';
-        if (trevosEl) trevosEl.value = '';
-        if (nomeEl) nomeEl.value = '';
-        self.renderMeusJogos();
-    },
-
-    importarPrevisaoParaMeusJogos: function() {
-        var self = this;
-        if (!self._lastPrevisoes || self._lastPrevisoes.length === 0) {
-            self.showNotification('Gere previsões primeiro na aba Previsões!', 'error');
-            return;
-        }
-        var jogos = self.getMeusJogos();
-        for (var i = 0; i < self._lastPrevisoes.length; i++) {
-            var p = self._lastPrevisoes[i];
-            var numeros = self.parseArray(p.numeros);
-            var trevos = self.parseArray(p.trevos);
-            var confianca = p.confianca != null ? p.confianca : (p.confidence || null);
-            jogos.push({
-                id: self.gerarId(),
-                jogo_slug: self.currentGame,
-                nome: 'Previsão ' + (i + 1) + ' - ' + ((self.jogosConfig[self.currentGame] || {}).nome || self.currentGame),
-                numeros: numeros.sort(function(a, b) { return a - b; }),
-                trevos: trevos.sort(function(a, b) { return a - b; }),
-                fonte: 'previsao',
-                data: new Date().toISOString(),
-                confianca: confianca,
-                estrategia: p.estrategia || null
-            });
-        }
-        self.salvarMeusJogos(jogos);
-        self.showNotification(self._lastPrevisoes.length + ' previsões importadas!', 'success');
-        self.renderMeusJogos();
-    },
-
-    importarFechamentoParaMeusJogos: function() {
-        var self = this;
-        if (!self._lastFechamento || self._lastFechamento.length === 0) {
-            self.showNotification('Gere um fechamento primeiro!', 'error');
-            return;
-        }
-        var jogos = self.getMeusJogos();
-        for (var i = 0; i < self._lastFechamento.length; i++) {
-            var j = self._lastFechamento[i];
-            var numeros = self.parseArray(j.numeros);
-            jogos.push({
-                id: self.gerarId(),
-                jogo_slug: self.currentGame,
-                nome: 'Fechamento ' + (i + 1) + ' - ' + ((self.jogosConfig[self.currentGame] || {}).nome || self.currentGame),
-                numeros: numeros.sort(function(a, b) { return a - b; }),
-                trevos: [],
-                fonte: 'fechamento',
-                data: new Date().toISOString(),
-                confianca: j.score || j.confianca || null
-            });
-        }
-        self.salvarMeusJogos(jogos);
-        self.showNotification(self._lastFechamento.length + ' jogos importados do fechamento!', 'success');
-        self.renderMeusJogos();
-    },
-
-    removerMeuJogo: function(id) {
-        var jogos = this.getMeusJogos().filter(function(j) { return j.id !== id; });
-        this.salvarMeusJogos(jogos);
-        this.showNotification('Jogo removido.', 'info');
-        this.renderMeusJogos();
-    },
-
-    limparMeusJogos: function() {
-        if (!confirm('Tem certeza que deseja remover TODOS os seus jogos salvos?')) return;
-        this.salvarMeusJogos([]);
-        this.showNotification('Todos os jogos removidos.', 'info');
-        this.renderMeusJogos();
-    },
-
-    validarMeuJogo: function(id) {
-        var self = this;
-        var jogos = self.getMeusJogos();
-        var jogo = null;
-        var jogoIdx = -1;
-        for (var i = 0; i < jogos.length; i++) {
-            if (jogos[i].id === id) { jogo = jogos[i]; jogoIdx = i; break; }
-        }
-        if (!jogo) return;
-
-        self.showNotification('Validando jogo...', 'info');
-
-        self.apiRequest('/api/validacao/validar-jogo', {
-            method: 'POST',
-            body: JSON.stringify({ jogo_slug: jogo.jogo_slug, numeros: jogo.numeros, trevos: jogo.trevos || [] })
-        }).then(function(data) {
-            var score = data.score_geral != null ? data.score_geral : (data.score || data.confianca || 0);
-            jogos[jogoIdx].confianca = score;
-            jogos[jogoIdx].scores_modelos = data.scores_modelos || data.modelos || null;
-            jogos[jogoIdx].classificacao = data.classificacao || null;
-            jogos[jogoIdx].validado_em = new Date().toISOString();
-            self.salvarMeusJogos(jogos);
-            self.showNotification('Confiança: ' + (score * 100).toFixed(1) + '%', 'success');
-            self.renderMeusJogos();
-        }).catch(function(err) {
-            self.showNotification('Erro ao validar: ' + err.message, 'error');
-        });
-    },
-
-    renderMeusJogos: function() {
-        var self = this;
-        var container = self.el('meus-jogos-lista');
+    // ========================================
+    // DASHBOARD
+    // ========================================
+    async loadDashboard() {
+        const container = document.getElementById('dashboard-content');
         if (!container) return;
-        var jogos = self.getMeusJogos();
+        try {
+            container.innerHTML = '<p style="color:#888;text-align:center;">Carregando dashboard...</p>';
+            const data = await this.apiRequest(`/api/resultados/?jogo_slug=${this.currentGame}&limit=10`);
+            let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total || 0}</p>
+                    <p style="color:#888;font-size:13px;">Total de Concursos</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00ff88;">${data.resultados?.[0]?.concurso || '-'}</p>
+                    <p style="color:#888;font-size:13px;">Último Concurso</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.resultados?.[0]?.data_sorteio || '-'}</p>
+                    <p style="color:#888;font-size:13px;">Data do Último Sorteio</p>
+                </div>
+            </div>
+            <h3 style="color:#e0e0e0;margin-bottom:12px;">Últimos 10 Resultados</h3>`;
+            if (data.resultados && data.resultados.length > 0) {
+                html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#0d0d1a;"><th style="padding:10px;color:#00d4ff;text-align:left;">Concurso</th><th style="padding:10px;color:#00d4ff;text-align:left;">Data</th><th style="padding:10px;color:#00d4ff;text-align:left;">Números</th><th style="padding:10px;color:#00d4ff;text-align:right;">Prêmio</th></tr></thead><tbody>';
+                for (const r of data.resultados) {
+                    const nums = this.parseArray(r.numeros).map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:2px 7px;border-radius:50%;font-size:13px;font-weight:bold;margin:1px;">${String(n).padStart(2,'0')}</span>`).join(' ');
+                    const trevosArr = this.parseArray(r.trevos);
+                    const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:2px 7px;border-radius:50%;font-size:13px;font-weight:bold;margin:1px;">${t}</span>`).join(' ') : '';
+                    const premio = r.premio_principal ? `R$ ${Number(r.premio_principal).toLocaleString('pt-BR', {minimumFractionDigits:2})}` : '-';
+                    html += `<tr style="border-bottom:1px solid #222;"><td style="padding:10px;color:#e0e0e0;">${r.concurso}</td><td style="padding:10px;color:#e0e0e0;">${r.data_sorteio || '-'}</td><td style="padding:10px;">${nums}${trevos}</td><td style="padding:10px;color:#00ff88;text-align:right;">${premio}</td></tr>`;
+                }
+                html += '</tbody></table></div>';
+            } else {
+                html += '<p style="color:#888;text-align:center;padding:40px;">Nenhum resultado encontrado. Importe os dados na aba "Inserir Dados".</p>';
+            }
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#e74c3c;font-size:18px;">❌ Erro ao carregar dashboard: ${err.message}</p><p style="color:#888;margin-top:8px;">Verifique a configuração do backend na aba "Inserir Dados".</p></div>`;
+        }
+    },
+
+    // ========================================
+    // ANÁLISE IA
+    // ========================================
+    async executarAnalise() {
+        const container = document.getElementById('analise-content');
+        if (!container) return;
+        try {
+            container.innerHTML = '<p style="color:#888;text-align:center;">Executando análise com 8 modelos de IA...</p>';
+            const data = await this.apiRequest(`/api/analises/completa?jogo_slug=${this.currentGame}`);
+            let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_concursos}</p>
+                    <p style="color:#888;font-size:13px;">Concursos Analisados</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00ff88;">${data.ultimo_concurso}</p>
+                    <p style="color:#888;font-size:13px;">Último Concurso</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.modelos_usados?.length || 6}</p>
+                    <p style="color:#888;font-size:13px;">Modelos de IA</p>
+                </div>
+            </div>
+            <h3 style="color:#e0e0e0;margin-bottom:12px;">🔥 Top 15 Números Quentes</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;">`;
+            for (const n of (data.top_quentes || [])) {
+                const cor = n.classificacao === 'quente' ? '#e74c3c' : n.classificacao === 'morno' ? '#f39c12' : '#3498db';
+                html += `<div style="background:#1a1a2e;border-left:4px solid ${cor};padding:12px;border-radius:8px;min-width:120px;">
+                    <p style="font-size:24px;font-weight:bold;color:${cor};">${String(n.numero).padStart(2,'0')}</p>
+                    <p style="color:#e0e0e0;font-size:13px;">${(n.score*100).toFixed(1)}%</p>
+                    <p style="color:#888;font-size:11px;">${n.classificacao}</p>
+                    <p style="color:#666;font-size:10px;">Freq: ${(n.frequencia_recente*100).toFixed(1)}% | Atraso: ${n.atraso}</p>
+                </div>`;
+            }
+            html += '</div>';
+            html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">❄️ Top 10 Números Frios</h3><div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;">';
+            for (const n of (data.top_frios || [])) {
+                html += `<div style="background:#1a1a2e;border-left:4px solid #3498db;padding:12px;border-radius:8px;min-width:100px;">
+                    <p style="font-size:20px;font-weight:bold;color:#3498db;">${String(n.numero).padStart(2,'0')}</p>
+                    <p style="color:#e0e0e0;font-size:13px;">${(n.score*100).toFixed(1)}%</p>
+                    <p style="color:#888;font-size:11px;">${n.classificacao}</p>
+                </div>`;
+            }
+            html += '</div>';
+            if (data.pares_frequentes) {
+                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">👯 Pares Mais Frequentes</h3><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">';
+                const pares = Object.entries(data.pares_frequentes).slice(0, 15);
+                for (const [par, freq] of pares) {
+                    html += `<div style="background:#1a1a2e;padding:8px 14px;border-radius:8px;border:1px solid #333;">
+                        <span style="color:#00d4ff;">${par}</span> <span style="color:#888;">${freq}x</span>
+                    </div>`;
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">❌ ${err.message}</p>`;
+        }
+    },
+
+    // ========================================
+    // PREVISÕES (com botão Salvar Jogo)
+    // ========================================
+    async gerarPrevisoes() {
+        const container = document.getElementById('previsoes-content');
+        if (!container) return;
+        const qtd = parseInt(document.getElementById('qtd-previsoes')?.value || '5');
+        try {
+            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando previsões com ensemble de 6 modelos...</p>';
+            const data = await this.apiRequest('/api/previsoes/gerar', {
+                method: 'POST',
+                body: JSON.stringify({ jogo_slug: this.currentGame, quantidade_jogos: qtd })
+            });
+            this._lastPrevisoes = (data.previsoes || []).map(p => ({
+                numeros: this.parseArray(p.numeros),
+                trevos: this.parseArray(p.trevos),
+                confianca: p.confianca || 0,
+                score: p.score || 0,
+                jogo_slug: this.currentGame
+            }));
+
+            let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_concursos_analisados}</p>
+                    <p style="color:#888;font-size:13px;">Concursos Analisados</p>
+                </div>
+            </div>`;
+            html += '<div style="display:grid;gap:16px;">';
+            data.previsoes?.forEach((p, i) => {
+                const nums = this.parseArray(p.numeros).map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${String(n).padStart(2,'0')}</span>`).join(' ');
+                const trevosArr = this.parseArray(p.trevos);
+                const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${t}</span>`).join(' ') : '';
+                const confCor = p.confianca > 70 ? '#27ae60' : p.confianca > 50 ? '#f39c12' : '#e74c3c';
+                html += `<div style="background:#1a1a2e;padding:20px;border-radius:12px;border:1px solid #333;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <h4 style="color:#e0e0e0;margin:0;">Jogo ${i+1}</h4>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="background:${confCor};color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;">${p.confianca}%</span>
+                            <button onclick="App.salvarJogoDaPrevisao(${i})" style="background:#00d4ff;color:#0d0d1a;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" title="Salvar em Meus Jogos">💾 Salvar</button>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:8px;">${nums}${trevos}</div>
+                    <p style="color:#888;font-size:12px;">Score: ${p.score}</p>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">❌ ${err.message}</p>`;
+        }
+    },
+
+    salvarJogoDaPrevisao(index) {
+        const p = this._lastPrevisoes[index];
+        if (!p) { this.showNotification('Previsão não encontrada', 'error'); return; }
+        const cfg = this.jogosConfig[p.jogo_slug];
+        const nome = `${cfg.nome} - Previsão ${index+1}`;
+        this.adicionarJogoAoStorage(p.jogo_slug, nome, p.numeros, p.trevos, p.confianca);
+    },
+
+    // ========================================
+    // VALIDAÇÃO (com botão Salvar Jogo)
+    // ========================================
+    async validarJogo() {
+        const container = document.getElementById('validacao-content');
+        if (!container) return;
+        const numerosStr = document.getElementById('validar-numeros')?.value || '';
+        const trevosStr  = document.getElementById('validar-trevos')?.value || '';
+        const numeros = numerosStr.split(/[,\s]+/).filter(n => n).map(Number);
+        const trevos  = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number) : [];
+        if (numeros.length === 0 || numeros.some(isNaN)) {
+            this.showNotification('Preencha os números corretamente', 'error');
+            return;
+        }
+        try {
+            container.innerHTML = '<p style="color:#888;text-align:center;">Validando jogo...</p>';
+            const data = await this.apiRequest('/api/validacao/validar-jogo', {
+                method: 'POST',
+                body: JSON.stringify({ jogo_slug: this.currentGame, numeros, trevos })
+            });
+            this._lastValidacao = {
+                numeros: numeros,
+                trevos: trevos,
+                confianca: data.confianca || 0,
+                jogo_slug: this.currentGame
+            };
+
+            const confCor = data.confianca > 70 ? '#27ae60' : data.confianca > 50 ? '#f39c12' : '#e74c3c';
+            let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:2px solid ${confCor};">
+                    <p style="font-size:36px;font-weight:bold;color:${confCor};">${data.confianca}%</p>
+                    <p style="color:#888;font-size:13px;">Confiança</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.classificacao}</p>
+                    <p style="color:#888;font-size:13px;">Classificação</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.distribuicao?.pares}P / ${data.distribuicao?.impares}I</p>
+                    <p style="color:#888;font-size:13px;">Par/Ímpar</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.distribuicao?.soma}</p>
+                    <p style="color:#888;font-size:13px;">Soma</p>
+                </div>
+            </div>
+            <div style="text-align:center;margin-bottom:24px;">
+                <button onclick="App.salvarJogoDaValidacao()" style="background:#00d4ff;color:#0d0d1a;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:bold;font-size:14px;">💾 Salvar em Meus Jogos</button>
+            </div>
+            <h3 style="color:#e0e0e0;margin-bottom:12px;">Análise por Número</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;">`;
+            for (const n of (data.numeros_analise || [])) {
+                const cor = n.classificacao === 'quente' ? '#e74c3c' : n.classificacao === 'morno' ? '#f39c12' : '#3498db';
+                html += `<div style="background:#1a1a2e;border-left:4px solid ${cor};padding:10px;border-radius:8px;min-width:80px;text-align:center;">
+                    <p style="font-size:22px;font-weight:bold;color:${cor};">${String(n.numero).padStart(2,'0')}</p>
+                    <p style="color:#e0e0e0;font-size:12px;">${(n.score*100).toFixed(1)}%</p>
+                    <p style="color:#888;font-size:10px;">${n.classificacao}</p>
+                </div>`;
+            }
+            html += '</div>';
+            if (data.sugestoes_melhoria?.length > 0) {
+                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">Sugestões de Melhoria</h3><div style="margin-bottom:24px;">';
+                for (const s of data.sugestoes_melhoria) {
+                    html += `<p style="color:#e0e0e0;padding:8px;background:#1a1a2e;border-radius:6px;margin-bottom:6px;">Trocar <span style="color:#e74c3c;font-weight:bold;">${String(s.trocar).padStart(2,'0')}</span> por <span style="color:#27ae60;font-weight:bold;">${String(s.por).padStart(2,'0')}</span> (ganho: +${(s.ganho_score*100).toFixed(1)}%)</p>`;
+                }
+                html += '</div>';
+            }
+            if (data.recomendacoes?.length > 0) {
+                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">Recomendações</h3><div style="margin-bottom:24px;">';
+                for (const r of data.recomendacoes) {
+                    html += `<p style="color:#e0e0e0;padding:6px 0;">• ${r}</p>`;
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">❌ ${err.message}</p>`;
+        }
+    },
+
+    salvarJogoDaValidacao() {
+        const v = this._lastValidacao;
+        if (!v) { this.showNotification('Nenhuma validação para salvar', 'error'); return; }
+        const cfg = this.jogosConfig[v.jogo_slug];
+        const nome = `${cfg.nome} - Validado ${v.confianca}%`;
+        this.adicionarJogoAoStorage(v.jogo_slug, nome, v.numeros, v.trevos, v.confianca);
+    },
+
+    // ========================================
+    // FECHAMENTO (com botão Salvar Jogo)
+    // ========================================
+    async gerarFechamento() {
+        const container = document.getElementById('fechamento-content');
+        if (!container) return;
+        const garantia = document.getElementById('fechamento-garantia')?.value || 'quadra';
+        const tamanho  = parseInt(document.getElementById('fechamento-tamanho')?.value || '18');
+        try {
+            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando fechamento combinatório...</p>';
+            const data = await this.apiRequest(`/api/previsoes/fechamento?jogo_slug=${this.currentGame}&garantia=${garantia}&tamanho_universo=${tamanho}`, { method: 'POST' });
+            this._lastFechamento = (data.jogos || []).map(j => ({
+                numeros: this.parseArray(j.numeros),
+                trevos: this.parseArray(j.trevos),
+                confianca: j.score || 0,
+                jogo_slug: this.currentGame
+            }));
+
+            let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_jogos}</p>
+                    <p style="color:#888;font-size:13px;">Total de Jogos</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00ff88;">${data.tamanho_universo}</p>
+                    <p style="color:#888;font-size:13px;">Universo</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.cobertura}%</p>
+                    <p style="color:#888;font-size:13px;">Cobertura</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.garantia}</p>
+                    <p style="color:#888;font-size:13px;">Garantia</p>
+                </div>
+            </div>`;
+            html += `<h3 style="color:#e0e0e0;margin-bottom:12px;">Universo Selecionado</h3>
+                <div style="margin-bottom:24px;">${(data.universo||[]).map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;display:inline-block;">${String(n).padStart(2,'0')}</span>`).join(' ')}</div>`;
+            html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">Jogos Gerados</h3><div style="display:grid;gap:12px;">';
+            (data.jogos||[]).forEach((j, i) => {
+                const nums = this.parseArray(j.numeros).map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:3px 8px;border-radius:50%;font-weight:bold;font-size:13px;margin:1px;">${String(n).padStart(2,'0')}</span>`).join(' ');
+                const trevosArr = this.parseArray(j.trevos);
+                const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:3px 8px;border-radius:50%;font-weight:bold;font-size:13px;margin:1px;">${t}</span>`).join(' ') : '';
+                html += `<div style="background:#1a1a2e;padding:14px;border-radius:10px;border:1px solid #333;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <div><strong style="color:#888;">Jogo ${i+1}</strong> ${nums}${trevos} <span style="color:#888;font-size:12px;margin-left:8px;">Score: ${j.score}</span></div>
+                    <button onclick="App.salvarJogoDoFechamento(${i})" style="background:#00d4ff;color:#0d0d1a;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" title="Salvar em Meus Jogos">💾</button>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">❌ ${err.message}</p>`;
+        }
+    },
+
+    salvarJogoDoFechamento(index) {
+        const j = this._lastFechamento[index];
+        if (!j) { this.showNotification('Jogo não encontrado', 'error'); return; }
+        const cfg = this.jogosConfig[j.jogo_slug];
+        const nome = `${cfg.nome} - Fechamento ${index+1}`;
+        this.adicionarJogoAoStorage(j.jogo_slug, nome, j.numeros, j.trevos, j.confianca);
+    },
+
+    // ========================================
+    // BACKTESTING
+    // ========================================
+    async executarBacktest() {
+        const container = document.getElementById('backtest-content');
+        if (!container) return;
+        const concursos = parseInt(document.getElementById('backtest-concursos')?.value || '50');
+        const cartelas  = parseInt(document.getElementById('backtest-cartelas')?.value || '3');
+        try {
+            container.innerHTML = '<p style="color:#888;text-align:center;">Executando backtesting... Pode levar alguns minutos.</p>';
+            const data = await this.apiRequest('/api/backtesting/executar', {
+                method: 'POST',
+                body: JSON.stringify({ jogo_slug: this.currentGame, concursos_teste: concursos, cartelas_por_concurso: cartelas })
+            });
+            let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.concursos_testados}</p>
+                    <p style="color:#888;font-size:13px;">Concursos Testados</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#00ff88;">${data.total_cartelas}</p>
+                    <p style="color:#888;font-size:13px;">Total Cartelas</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.taxa_4_acertos}%</p>
+                    <p style="color:#888;font-size:13px;">Taxa 4 Acertos</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.taxa_5_acertos}%</p>
+                    <p style="color:#888;font-size:13px;">Taxa 5 Acertos</p>
+                </div>
+            </div>
+            <h3 style="color:#e0e0e0;margin-bottom:12px;">Distribuição de Acertos</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;">`;
+            if (data.distribuicao_acertos) {
+                for (const [acertos, qtd] of Object.entries(data.distribuicao_acertos)) {
+                    if (qtd > 0) {
+                        html += `<div style="background:#1a1a2e;padding:16px;border-radius:10px;text-align:center;min-width:100px;border:1px solid #333;">
+                            <p style="font-size:24px;font-weight:bold;color:#00d4ff;">${acertos}</p>
+                            <p style="color:#888;font-size:11px;">acertos</p>
+                            <p style="color:#00ff88;font-size:18px;font-weight:bold;">${qtd}x</p>
+                        </div>`;
+                    }
+                }
+            }
+            html += '</div>';
+            if (data.melhores_resultados?.length > 0) {
+                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">Melhores Resultados</h3><div style="display:grid;gap:8px;margin-bottom:24px;">';
+                for (const m of data.melhores_resultados) {
+                    html += `<div style="background:#1a1a2e;padding:12px;border-radius:8px;border:1px solid #333;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="color:#e0e0e0;">Concurso ${m.concurso}</span>
+                        <span style="color:#27ae60;font-weight:bold;">${m.acertos} acertos</span>
+                        <span style="color:#888;font-size:12px;">${(m.sorteados||[]).map(n => String(n).padStart(2,'0')).join(', ')}</span>
+                    </div>`;
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">❌ ${err.message}</p>`;
+        }
+    },
+
+    // ========================================
+    // ALERTAS
+    // ========================================
+    async verificarAlertas() {
+        const container = document.getElementById('alertas-content');
+        if (!container) return;
+        try {
+            container.innerHTML = '<p style="color:#888;text-align:center;">Verificando alertas...</p>';
+            const data = await this.apiRequest(`/api/alertas/verificar?jogo_slug=${this.currentGame}`, { method: 'POST' });
+            if (!data.alertas || data.alertas.length === 0) {
+                container.innerHTML = '<p style="color:#27ae60;text-align:center;padding:40px;font-size:18px;">✅ Nenhum alerta no momento.</p>';
+                return;
+            }
+            let html = `<div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;margin-bottom:24px;">
+                <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.total}</p>
+                <p style="color:#888;font-size:13px;">Alertas Encontrados</p>
+            </div><div style="display:grid;gap:12px;">`;
+            for (const a of data.alertas) {
+                const icon = a.tipo === 'atraso_critico' ? '⏰' : a.tipo === 'score_alto' ? '🔥' : '📊';
+                const cor  = a.tipo === 'atraso_critico' ? '#e74c3c' : '#27ae60';
+                html += `<div style="background:#1a1a2e;border-left:4px solid ${cor};padding:14px;border-radius:8px;">
+                    <p style="color:#e0e0e0;">${icon} ${a.mensagem}</p>
+                </div>`;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">❌ ${err.message}</p>`;
+        }
+    },
+
+    // ========================================
+    // INSERIR RESULTADO MANUAL
+    // ========================================
+    async inserirResultado() {
+        const concurso   = parseInt(document.getElementById('inserir-concurso')?.value);
+        const data       = document.getElementById('inserir-data')?.value;
+        const numerosStr = document.getElementById('inserir-numeros')?.value || '';
+        const trevosStr  = document.getElementById('inserir-trevos')?.value || '';
+        const premio     = parseFloat(document.getElementById('inserir-premio')?.value || '0');
+        const acumulou   = document.getElementById('inserir-acumulou')?.checked || false;
+        const numeros = numerosStr.split(/[,\s]+/).filter(n => n).map(Number);
+        const trevos  = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number) : [];
+        if (!concurso || !data || numeros.length === 0) {
+            this.showNotification('Preencha todos os campos obrigatórios', 'error');
+            return;
+        }
+        try {
+            await this.apiRequest('/api/resultados/', {
+                method: 'POST',
+                body: JSON.stringify({ jogo_slug: this.currentGame, concurso, data_sorteio: data, numeros, trevos, premio_principal: premio, acumulou })
+            });
+            this.showNotification(`Concurso ${concurso} inserido com sucesso!`, 'success');
+            this.loadDashboard();
+        } catch (err) {
+            this.showNotification(`Erro: ${err.message}`, 'error');
+        }
+    },
+
+    // ========================================
+    // IMPORTAR JOGO INDIVIDUAL
+    // ========================================
+    async importarJogoIndividual() {
+        const jogo = document.getElementById('import-jogo-select')?.value || this.currentGame;
+        const desdeAno = parseInt(document.getElementById('import-desde')?.value || '2022');
+        await this.importarUmJogo(jogo, desdeAno, document.getElementById('import-status'));
+        this.loadDashboard();
+    },
+
+    // ========================================
+    // IMPORTAR HISTÓRICO VIA PROXY
+    // ========================================
+    async importarHistoricoProxy() {
+        const btn = document.getElementById('btn-importar-todos');
+        const statusEl = document.getElementById('import-status');
+        if (!btn) return;
+        const desdeAno = parseInt(document.getElementById('import-desde')?.value || '2022');
+        btn.disabled = true;
+        btn.textContent = 'Importando...';
+        const jogos = ['mega-sena','lotofacil','lotomania','mais-milionaria'];
+        let totalGeral = 0;
+        let resultadoHtml = '';
+        for (const jogo of jogos) {
+            const resultado = await this.importarUmJogo(jogo, desdeAno, statusEl, resultadoHtml);
+            resultadoHtml = resultado.html;
+            totalGeral += resultado.inseridos;
+        }
+        resultadoHtml += `<p style="color:#00d4ff;font-weight:bold;margin-top:12px;">📊 Total importado: ${totalGeral} concursos</p>`;
+        if (statusEl) statusEl.innerHTML = resultadoHtml;
+        btn.disabled = false;
+        btn.textContent = 'Importar Todos os Jogos';
+        this.showNotification(`Importação concluída! ${totalGeral} concursos importados.`, 'success');
+        this.loadDashboard();
+    },
+
+    async importarUmJogo(jogo, desdeAno, statusEl, prevHtml = '') {
+        const apiNomes = { 'mega-sena':'megasena','lotofacil':'lotofacil','lotomania':'lotomania','mais-milionaria':'maismilionaria' };
+        const estimativas = {
+    'mega-sena':       {1996:1, 2000:150, 2005:500, 2010:1150, 2015:1700, 2018:2000, 2019:2100, 2020:2200, 2021:2330, 2022:2460, 2023:2600, 2024:2750, 2025:2880},
+    'lotofacil':       {1996:1, 2000:1, 2003:1, 2005:200, 2010:800, 2015:1200, 2018:1600, 2019:1700, 2020:1900, 2021:2100, 2022:2400, 2023:2700, 2024:3100, 2025:3400},
+    'lotomania':       {1996:1, 1999:1, 2000:50, 2005:500, 2010:1050, 2015:1550, 2018:1800, 2019:1900, 2020:2050, 2021:2150, 2022:2300, 2023:2450, 2024:2600, 2025:2750},
+    'mais-milionaria': {1996:1, 2000:1, 2005:1, 2010:1, 2015:1, 2018:1, 2019:1, 2020:1, 2021:1, 2022:1, 2023:50, 2024:150, 2025:250}
+};
+        const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
+        const apiNome = apiNomes[jogo];
+        let resultadoHtml = prevHtml;
+        let inseridos = 0;
+        const updateStatus = (msg) => { if (statusEl) statusEl.innerHTML = msg; };
+        try {
+            updateStatus(resultadoHtml + `<p style="color:#888;">🔄 ${jogo}: buscando último concurso...</p>`);
+            const respUltimo = await fetch(`${caixaBase}/${apiNome}`);
+            if (!respUltimo.ok) {
+                resultadoHtml += `<p style="color:#f39c12;">⚠️ ${jogo}: API da Caixa retornou ${respUltimo.status}</p>`;
+                return { html: resultadoHtml, inseridos: 0 };
+            }
+            const dataUltimo = await respUltimo.json();
+            const ultimoCaixa = dataUltimo.numero;
+            let ultimoDB = 0;
+            try { const respDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`); ultimoDB = respDB.ultimo?.concurso || 0; } catch(e) { ultimoDB = 0; }
+            const estJogo = estimativas[jogo] || {};
+            const desdeConc = estJogo[desdeAno] || 1;
+            const inicio = Math.max(desdeConc, ultimoDB + 1);
+            if (inicio > ultimoCaixa) {
+                resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: já atualizado (concurso ${ultimoDB})</p>`;
+                updateStatus(resultadoHtml);
+                return { html: resultadoHtml, inseridos: 0 };
+            }
+            const totalConc = ultimoCaixa - inicio + 1;
+            updateStatus(resultadoHtml + `<p style="color:#888;">🔄 ${jogo}: importando ${totalConc} concursos (${inicio} → ${ultimoCaixa})...</p>`);
+            let batch = [];
+            let erros = 0;
+            for (let num = inicio; num <= ultimoCaixa; num++) {
+                try {
+                    const resp = await fetch(`${caixaBase}/${apiNome}/${num}`);
+                    if (!resp.ok) { erros++; continue; }
+                    const d = await resp.json();
+                    batch.push({
+                        concurso: d.numero || num,
+                        data_sorteio: d.dataApuracao || '',
+                        numeros: (d.listaDezenas || []).map(n => parseInt(n,10)),
+                        trevos: (d.trevosSorteados || []).map(n => parseInt(n,10)),
+                        premio_principal: d.listaRateioPremio?.[0]?.valorPremio || 0,
+                        acumulou: d.acumulado || false
+                    });
+                    if (batch.length >= 30) {
+                        try {
+                            await this.apiRequest('/api/importar-proxy', { method:'POST', body:JSON.stringify({jogo_slug:jogo,resultados:batch}) });
+                            inseridos += batch.length;
+                        } catch(e) { erros += batch.length; console.error(`Erro batch ${jogo}:`, e); }
+                        batch = [];
+                        updateStatus(resultadoHtml + `<p style="color:#888;">🔄 ${jogo}: ${inseridos}/${totalConc} importados...</p>`);
+                    }
+                    if (num % 5 === 0) await new Promise(r => setTimeout(r, 150));
+                } catch(e) { erros++; }
+            }
+            if (batch.length > 0) {
+                try { await this.apiRequest('/api/importar-proxy', { method:'POST', body:JSON.stringify({jogo_slug:jogo,resultados:batch}) }); inseridos += batch.length; }
+                catch(e) { erros += batch.length; }
+            }
+            resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: ${inseridos} concursos importados${erros > 0 ? ` (${erros} erros)` : ''}</p>`;
+            updateStatus(resultadoHtml);
+        } catch(err) {
+            resultadoHtml += `<p style="color:#e74c3c;">❌ ${jogo}: ${err.message}</p>`;
+            updateStatus(resultadoHtml);
+        }
+        return { html: resultadoHtml, inseridos };
+    },
+
+    // ========================================
+    // FORÇAR ATUALIZAÇÃO (via proxy)
+    // ========================================
+    async forcarAtualizacao() {
+        const btn = document.getElementById('btn-atualizar');
+        const statusEl = document.getElementById('update-status');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.textContent = 'Atualizando...';
+        await this.atualizarViaProxy(statusEl);
+        btn.disabled = false;
+        btn.textContent = 'Forçar Atualização';
+        // Recalcular confiança dos jogos salvos após atualizar
+        this.recalcularConfiancaTodos();
+        this.loadDashboard();
+    },
+
+    async atualizarViaProxy(statusEl) {
+        const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
+        const apiNomes = { 'mega-sena':'megasena','lotofacil':'lotofacil','lotomania':'lotomania','mais-milionaria':'maismilionaria' };
+        let html = '';
+        for (const [jogo, apiNome] of Object.entries(apiNomes)) {
+            try {
+                const resp = await fetch(`${caixaBase}/${apiNome}`);
+                if (!resp.ok) { html += `<p style="color:#f39c12;">⚠️ ${jogo}: erro ${resp.status}</p>`; continue; }
+                const d = await resp.json();
+                const concurso = d.numero;
+                let ultimoDB = 0;
+                try { const rDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`); ultimoDB = rDB.ultimo?.concurso || 0; } catch(e){}
+                if (concurso <= ultimoDB) {
+                    html += `<p style="color:#888;">➡️ ${jogo}: já atualizado (${ultimoDB})</p>`;
+                } else {
+                    await this.apiRequest('/api/importar-proxy', {
+                        method:'POST',
+                        body:JSON.stringify({jogo_slug:jogo,resultados:[{
+                            concurso,
+                            data_sorteio: d.dataApuracao || '',
+                            numeros: (d.listaDezenas||[]).map(n => parseInt(n,10)),
+                            trevos: (d.trevosSorteados||[]).map(n => parseInt(n,10)),
+                            premio_principal: d.listaRateioPremio?.[0]?.valorPremio || 0,
+                            acumulou: d.acumulado || false
+                        }]})
+                    });
+                    html += `<p style="color:#27ae60;">✅ ${jogo}: atualizado para concurso ${concurso}</p>`;
+                }
+            } catch(e) { html += `<p style="color:#e74c3c;">❌ ${jogo}: ${e.message}</p>`; }
+        }
+        if (statusEl) statusEl.innerHTML = html;
+        this.showNotification('Atualização concluída!', 'success');
+    },
+
+    // ================================================================
+    // MEUS JOGOS — Módulo completo
+    // ================================================================
+    setupMeusJogos() {
+        // Botão Adicionar
+        document.getElementById('btn-adicionar-jogo')?.addEventListener('click', () => this.abrirModalJogo());
+        // Botão Recalcular
+        document.getElementById('btn-recalcular-confianca')?.addEventListener('click', () => this.recalcularConfiancaTodos());
+        // Modal: Cancelar
+        document.getElementById('btn-modal-cancelar')?.addEventListener('click', () => this.fecharModalJogo());
+        // Modal: Salvar
+        document.getElementById('btn-modal-salvar')?.addEventListener('click', () => this.salvarJogoDoModal());
+        // Modal: Tipo muda → atualizar labels
+        document.getElementById('mj-tipo')?.addEventListener('change', () => this.atualizarModalPorTipo());
+        // Fechar modal clicando fora
+        document.getElementById('modal-jogo')?.addEventListener('click', (e) => {
+            if (e.target.id === 'modal-jogo') this.fecharModalJogo();
+        });
+    },
+
+    _editandoJogoId: null,
+
+    abrirModalJogo(jogoExistente = null) {
+        const modal = document.getElementById('modal-jogo');
+        if (!modal) return;
+        this._editandoJogoId = jogoExistente ? jogoExistente.id : null;
+        document.getElementById('modal-jogo-titulo').textContent = jogoExistente ? '✏️ Editar Jogo' : '➕ Adicionar Jogo';
+        document.getElementById('mj-tipo').value = jogoExistente?.jogo_slug || this.currentGame;
+        document.getElementById('mj-nome').value = jogoExistente?.nome || '';
+        document.getElementById('mj-numeros').value = jogoExistente ? jogoExistente.numeros.join(', ') : '';
+        document.getElementById('mj-trevos').value = jogoExistente?.trevos?.length > 0 ? jogoExistente.trevos.join(', ') : '';
+        document.getElementById('mj-validacao-msg').style.display = 'none';
+        // Se editando, desabilitar tipo
+        document.getElementById('mj-tipo').disabled = !!jogoExistente;
+        this.atualizarModalPorTipo();
+        modal.style.display = 'flex';
+    },
+
+    fecharModalJogo() {
+        const modal = document.getElementById('modal-jogo');
+        if (modal) modal.style.display = 'none';
+        this._editandoJogoId = null;
+        document.getElementById('mj-tipo').disabled = false;
+    },
+
+    atualizarModalPorTipo() {
+        const tipo = document.getElementById('mj-tipo')?.value || 'mega-sena';
+        const cfg = this.jogosConfig[tipo];
+        const label = document.getElementById('mj-numeros-label');
+        const hint = document.getElementById('mj-numeros-hint');
+        const trevosContainer = document.getElementById('mj-trevos-container');
+        if (label) label.textContent = `Números (${cfg.escolha} números de ${String(cfg.min).padStart(2,'0')} a ${String(cfg.max).padStart(2,'0')})`;
+        if (hint) {
+            const placeholders = {
+                'mega-sena': 'Ex: 04, 15, 23, 38, 45, 52',
+                'lotofacil': 'Ex: 01, 02, 03, 05, 07, 08, 10, 11, 13, 14, 17, 18, 20, 22, 25',
+                'lotomania': 'Ex: 00, 05, 12, 18, 23, 31, 37, 42, 49, 55, 61, 67, 73, 78, 84, 88, 90, 93, 96, 99',
+                'mais-milionaria': 'Ex: 04, 15, 23, 28, 35, 42'
+            };
+            document.getElementById('mj-numeros').placeholder = placeholders[tipo] || '';
+            hint.textContent = `Separados por vírgula ou espaço. ${tipo === 'lotomania' ? 'Escolha 20 números.' : ''}`;
+        }
+        if (trevosContainer) {
+            trevosContainer.style.display = cfg.trevos ? 'block' : 'none';
+        }
+    },
+
+    validarNumerosJogo(tipo, numeros, trevos) {
+        const cfg = this.jogosConfig[tipo];
+        if (!cfg) return { valido: false, msg: 'Tipo de jogo inválido' };
+        if (numeros.length !== cfg.escolha) {
+            return { valido: false, msg: `Insira exatamente ${cfg.escolha} números. Você colocou ${numeros.length}.` };
+        }
+        for (const n of numeros) {
+            if (isNaN(n) || n < cfg.min || n > cfg.max) {
+                return { valido: false, msg: `Número ${n} fora da faixa (${cfg.min}-${cfg.max}).` };
+            }
+        }
+        const unicos = new Set(numeros);
+        if (unicos.size !== numeros.length) {
+            return { valido: false, msg: 'Há números repetidos.' };
+        }
+        if (cfg.trevos) {
+            if (!trevos || trevos.length !== cfg.trevosEscolha) {
+                return { valido: false, msg: `Insira exatamente ${cfg.trevosEscolha} trevos.` };
+            }
+            for (const t of trevos) {
+                if (isNaN(t) || t < cfg.trevosMin || t > cfg.trevosMax) {
+                    return { valido: false, msg: `Trevo ${t} fora da faixa (${cfg.trevosMin}-${cfg.trevosMax}).` };
+                }
+            }
+            const unicosTrevos = new Set(trevos);
+            if (unicosTrevos.size !== trevos.length) {
+                return { valido: false, msg: 'Há trevos repetidos.' };
+            }
+        }
+        return { valido: true, msg: '' };
+    },
+
+    salvarJogoDoModal() {
+        const tipo = document.getElementById('mj-tipo')?.value || 'mega-sena';
+        const nome = document.getElementById('mj-nome')?.value?.trim() || '';
+        const numerosStr = document.getElementById('mj-numeros')?.value || '';
+        const trevosStr = document.getElementById('mj-trevos')?.value || '';
+        const msgEl = document.getElementById('mj-validacao-msg');
+        const numeros = numerosStr.split(/[,\s]+/).filter(n => n !== '').map(Number);
+        const cfg = this.jogosConfig[tipo];
+        const trevos = cfg.trevos && trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n !== '').map(Number) : [];
+        // Validar
+        const v = this.validarNumerosJogo(tipo, numeros, trevos);
+        if (!v.valido) {
+            if (msgEl) {
+                msgEl.style.display = 'block';
+                msgEl.style.background = '#3d1515';
+                msgEl.style.color = '#e74c3c';
+                msgEl.textContent = '❌ ' + v.msg;
+            }
+            return;
+        }
+        if (!nome) {
+            if (msgEl) {
+                msgEl.style.display = 'block';
+                msgEl.style.background = '#3d1515';
+                msgEl.style.color = '#e74c3c';
+                msgEl.textContent = '❌ Dê um nome ao seu jogo.';
+            }
+            return;
+        }
+
+        const jogos = this.getMeusJogos();
+        const sortedNums = [...numeros].sort((a,b) => a - b);
+        const sortedTrevos = [...trevos].sort((a,b) => a - b);
+
+        if (this._editandoJogoId) {
+            // Editar existente
+            const idx = jogos.findIndex(j => j.id === this._editandoJogoId);
+            if (idx >= 0) {
+                jogos[idx].nome = nome;
+                jogos[idx].numeros = sortedNums;
+                jogos[idx].trevos = sortedTrevos;
+                jogos[idx].atualizado_em = new Date().toISOString();
+                jogos[idx].confianca = null; // Será recalculado
+            }
+        } else {
+            // Novo jogo
+            jogos.push({
+                id: this.gerarId(),
+                jogo_slug: tipo,
+                nome: nome,
+                numeros: sortedNums,
+                trevos: sortedTrevos,
+                confianca: null,
+                criado_em: new Date().toISOString(),
+                atualizado_em: new Date().toISOString()
+            });
+        }
+
+        this.salvarMeusJogos(jogos);
+        this.fecharModalJogo();
+        this.renderMeusJogos();
+        this.showNotification(`Jogo "${nome}" salvo com sucesso!`, 'success');
+
+        // Tentar calcular confiança em background
+        this.recalcularConfiancaJogo(jogos[jogos.length - 1]?.id || this._editandoJogoId);
+    },
+
+    adicionarJogoAoStorage(jogo_slug, nome, numeros, trevos, confianca) {
+        const jogos = this.getMeusJogos();
+        const sortedNums = [...numeros].sort((a,b) => a - b);
+        const sortedTrevos = [...(trevos || [])].sort((a,b) => a - b);
+        jogos.push({
+            id: this.gerarId(),
+            jogo_slug,
+            nome,
+            numeros: sortedNums,
+            trevos: sortedTrevos,
+            confianca: confianca || null,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString()
+        });
+        this.salvarMeusJogos(jogos);
+        this.showNotification(`Jogo "${nome}" salvo em Meus Jogos!`, 'success');
+        if (this.currentPage === 'meus-jogos') {
+            this.renderMeusJogos();
+        }
+    },
+
+    excluirJogo(id) {
+        if (!confirm('Tem certeza que deseja excluir este jogo?')) return;
+        let jogos = this.getMeusJogos();
+        jogos = jogos.filter(j => j.id !== id);
+        this.salvarMeusJogos(jogos);
+        this.renderMeusJogos();
+        this.showNotification('Jogo excluído.', 'info');
+    },
+
+    editarJogo(id) {
+        const jogos = this.getMeusJogos();
+        const jogo = jogos.find(j => j.id === id);
+        if (jogo) this.abrirModalJogo(jogo);
+    },
+
+    async recalcularConfiancaJogo(id) {
+        if (!this.config.backendUrl) return;
+        const jogos = this.getMeusJogos();
+        const jogo = jogos.find(j => j.id === id);
+        if (!jogo) return;
+        try {
+            const data = await this.apiRequest('/api/validacao/validar-jogo', {
+                method: 'POST',
+                body: JSON.stringify({
+                    jogo_slug: jogo.jogo_slug,
+                    numeros: jogo.numeros,
+                    trevos: jogo.trevos || []
+                })
+            });
+            jogo.confianca = data.confianca || 0;
+            jogo.atualizado_em = new Date().toISOString();
+            this.salvarMeusJogos(jogos);
+            if (this.currentPage === 'meus-jogos') this.renderMeusJogos();
+        } catch(e) {
+            console.error(`Erro ao recalcular confiança para ${jogo.nome}:`, e);
+        }
+    },
+
+    async recalcularConfiancaTodos() {
+        if (!this.config.backendUrl) {
+            this.showNotification('Configure o backend primeiro', 'error');
+            return;
+        }
+        const jogos = this.getMeusJogos();
+        if (jogos.length === 0) {
+            this.showNotification('Nenhum jogo salvo para recalcular.', 'info');
+            return;
+        }
+        const btn = document.getElementById('btn-recalcular-confianca');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Recalculando...'; }
+        let atualizados = 0;
+        for (const jogo of jogos) {
+            try {
+                const data = await this.apiRequest('/api/validacao/validar-jogo', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        jogo_slug: jogo.jogo_slug,
+                        numeros: jogo.numeros,
+                        trevos: jogo.trevos || []
+                    })
+                });
+                jogo.confianca = data.confianca || 0;
+                jogo.atualizado_em = new Date().toISOString();
+                atualizados++;
+            } catch(e) {
+                console.error(`Erro: ${jogo.nome}`, e);
+            }
+        }
+        this.salvarMeusJogos(jogos);
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 Recalcular Confiança'; }
+        this.renderMeusJogos();
+        this.showNotification(`Confiança atualizada para ${atualizados} jogos!`, 'success');
+    },
+
+    renderMeusJogos() {
+        const container = document.getElementById('meus-jogos-lista');
+        const totalEl = document.getElementById('meus-jogos-total');
+        if (!container) return;
+        const jogos = this.getMeusJogos();
+        if (totalEl) totalEl.textContent = `${jogos.length} jogo${jogos.length !== 1 ? 's' : ''} salvo${jogos.length !== 1 ? 's' : ''}`;
 
         if (jogos.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">' +
-                '<p style="font-size:48px;">🎰</p>' +
-                '<p>Nenhum jogo salvo ainda.</p>' +
-                '<p style="font-size:13px;">Use o formulário acima para adicionar jogos ou importe da aba Previsões/Fechamento.</p>' +
-                '</div>';
+            container.innerHTML = `<div style="text-align:center;padding:60px 20px;color:#666;">
+                <p style="font-size:48px;margin-bottom:16px;">🎫</p>
+                <p style="font-size:16px;">Nenhum jogo salvo ainda.</p>
+                <p style="font-size:14px;margin-top:8px;">Clique em "Adicionar Jogo" ou salve jogos das abas Previsões, Validação e Fechamento.</p>
+            </div>`;
             return;
         }
 
-        var fonteLabel = { manual: '✏️ Manual', previsao: '🤖 Previsão IA', fechamento: '🔒 Fechamento' };
-        var modelosNomes = {
-            frequencia: 'Freq', atraso: 'Atr', padrao: 'Pad', distribuicao: 'Dist',
-            lstm: 'LSTM', xgboost: 'XGB', monte_carlo: 'MC', bayesiano: 'Bay'
-        };
+        // Agrupar por jogo_slug
+        const grupos = {};
+        for (const j of jogos) {
+            if (!grupos[j.jogo_slug]) grupos[j.jogo_slug] = [];
+            grupos[j.jogo_slug].push(j);
+        }
 
-        var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
-        html += '<span style="color:#888;">' + jogos.length + ' jogo(s) salvo(s)</span>';
-        html += '<button onclick="App.limparMeusJogos()" style="background:#e74c3c;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;">🗑 Limpar Todos</button>';
-        html += '</div>';
+        let html = '';
+        const icones = { 'mega-sena':'🎯', 'lotofacil':'🍀', 'lotomania':'🔮', 'mais-milionaria':'💎' };
+        const cores = { 'mega-sena':'#27ae60', 'lotofacil':'#9b59b6', 'lotomania':'#e67e22', 'mais-milionaria':'#00d4ff' };
 
-        // Mostrar do mais recente para o mais antigo
-        for (var idx = jogos.length - 1; idx >= 0; idx--) {
-            var j = jogos[idx];
-            var cfg = self.jogosConfig[j.jogo_slug] || {};
-            var numeros = self.parseArray(j.numeros);
-            var trevos = self.parseArray(j.trevos);
-            var confianca = j.confianca;
-            var confiancaText = confianca != null ? (confianca * 100).toFixed(1) + '%' : 'Não validado';
-            var confiancaColor = confianca != null ? self.getScoreColor(confianca) : '#888';
+        for (const [slug, lista] of Object.entries(grupos)) {
+            const cfg = this.jogosConfig[slug];
+            const icon = icones[slug] || '🎫';
+            const cor = cores[slug] || '#00d4ff';
 
-            html += '<div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:16px;margin-bottom:12px;">';
+            html += `<div style="margin-bottom:8px;">
+                <h3 style="color:${cor};margin-bottom:12px;">${icon} ${cfg?.nome || slug} (${lista.length})</h3>
+            </div>`;
 
-            // Header
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">';
-            html += '<div>';
-            html += '<span style="color:#00d4ff;font-weight:bold;">' + (j.nome || 'Jogo') + '</span>';
-            html += '<span style="color:#888;font-size:12px;margin-left:8px;">' + (cfg.nome || j.jogo_slug) + '</span>';
-            html += '<span style="color:#666;font-size:11px;margin-left:8px;">' + (fonteLabel[j.fonte] || j.fonte || '') + '</span>';
-            html += '</div>';
-            html += '<div style="display:flex;gap:6px;">';
-            html += '<button onclick="App.validarMeuJogo(\'' + j.id + '\')" style="background:#16213e;color:#00d4ff;border:1px solid #00d4ff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;">🔍 Validar</button>';
-            html += '<button onclick="App.removerMeuJogo(\'' + j.id + '\')" style="background:#16213e;color:#e74c3c;border:1px solid #e74c3c;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;">🗑</button>';
-            html += '</div>';
-            html += '</div>';
+            for (const jogo of lista) {
+                const nums = jogo.numeros.map(n => `<span style="background:${cor};color:#0d0d1a;padding:3px 8px;border-radius:50%;font-weight:bold;font-size:13px;margin:1px;display:inline-block;">${String(n).padStart(2,'0')}</span>`).join(' ');
+                const trevosHtml = jogo.trevos?.length > 0 ? ' + ' + jogo.trevos.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:3px 8px;border-radius:50%;font-weight:bold;font-size:13px;margin:1px;display:inline-block;">${t}</span>`).join(' ') : '';
 
-            // Numbers
-            html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">';
-            for (var ni = 0; ni < numeros.length; ni++) {
-                html += '<span style="background:#16213e;color:#fff;border:1px solid #444;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;">' + self.pad2(numeros[ni]) + '</span>';
-            }
-            for (var ti = 0; ti < trevos.length; ti++) {
-                html += '<span style="background:#f39c12;color:#000;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;">☘' + trevos[ti] + '</span>';
-            }
-            html += '</div>';
-
-            // Confidence
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">';
-            html += '<span style="color:' + confiancaColor + ';font-weight:bold;font-size:16px;">Confiança: ' + confiancaText + '</span>';
-            if (j.estrategia) html += '<span style="color:#888;font-size:11px;">Estratégia: ' + j.estrategia + '</span>';
-            if (j.validado_em) html += '<span style="color:#666;font-size:11px;">Validado: ' + new Date(j.validado_em).toLocaleString('pt-BR') + '</span>';
-            html += '</div>';
-
-            // Scores por modelo
-            if (j.scores_modelos) {
-                var smKeys = Object.keys(j.scores_modelos);
-                html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">';
-                for (var si = 0; si < smKeys.length; si++) {
-                    var sk = smKeys[si];
-                    var sv = j.scores_modelos[sk];
-                    var sc = self.getScoreColor(sv);
-                    html += '<span style="background:#0d1117;color:' + sc + ';padding:2px 8px;border-radius:10px;font-size:10px;">' + (modelosNomes[sk] || sk) + ': ' + (sv * 100).toFixed(0) + '%</span>';
+                let confHtml = '';
+                if (jogo.confianca !== null && jogo.confianca !== undefined) {
+                    const confCor = jogo.confianca > 70 ? '#27ae60' : jogo.confianca > 50 ? '#f39c12' : '#e74c3c';
+                    confHtml = `<div style="text-align:center;">
+                        <div style="width:56px;height:56px;border-radius:50%;border:3px solid ${confCor};display:flex;align-items:center;justify-content:center;margin:0 auto 4px;">
+                            <span style="color:${confCor};font-size:16px;font-weight:bold;">${jogo.confianca}%</span>
+                        </div>
+                        <span style="color:#888;font-size:10px;">Confiança</span>
+                    </div>`;
+                } else {
+                    confHtml = `<div style="text-align:center;">
+                        <div style="width:56px;height:56px;border-radius:50%;border:3px solid #444;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;">
+                            <span style="color:#444;font-size:14px;">—</span>
+                        </div>
+                        <span style="color:#666;font-size:10px;">Não calculado</span>
+                    </div>`;
                 }
-                html += '</div>';
-            }
 
-            html += '</div>';
+                const dataFormatada = jogo.atualizado_em ? new Date(jogo.atualizado_em).toLocaleDateString('pt-BR') : '';
+
+                html += `<div style="background:#1a1a2e;border-radius:12px;padding:16px;border:1px solid #333;display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+                    <div style="flex:1;min-width:200px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                            <strong style="color:#e0e0e0;font-size:15px;">${jogo.nome}</strong>
+                        </div>
+                        <div style="margin-bottom:6px;">${nums}${trevosHtml}</div>
+                        <span style="color:#666;font-size:11px;">Atualizado: ${dataFormatada}</span>
+                    </div>
+                    ${confHtml}
+                    <div style="display:flex;gap:6px;flex-direction:column;">
+                        <button onclick="App.editarJogo('${jogo.id}')" style="background:#333;color:#e0e0e0;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;" title="Editar">✏️ Editar</button>
+                        <button onclick="App.excluirJogo('${jogo.id}')" style="background:#3d1515;color:#e74c3c;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;" title="Excluir">🗑️ Excluir</button>
+                    </div>
+                </div>`;
+            }
         }
 
         container.innerHTML = html;
     },
 
-    // ==================== NOTIFICATION ====================
-    showNotification: function(msg, type) {
-        type = type || 'info';
-        var existing = document.querySelector('.lotoquant-notif');
+    // ========================================
+    // NOTIFICATION
+    // ========================================
+    showNotification(msg, type = 'info') {
+        const existing = document.querySelector('.notification');
         if (existing) existing.remove();
-        var colors = { success: '#27ae60', error: '#e74c3c', info: '#00d4ff', warning: '#f39c12' };
-        var div = document.createElement('div');
-        div.className = 'lotoquant-notif';
-        div.style.cssText = 'position:fixed;top:20px;right:20px;padding:14px 24px;border-radius:10px;color:#fff;font-size:14px;font-family:sans-serif;background:' + (colors[type] || colors.info) + ';z-index:99999;opacity:0;transition:opacity 0.3s;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
+        const div = document.createElement('div');
+        div.className = `notification notification-${type}`;
         div.textContent = msg;
         document.body.appendChild(div);
-        setTimeout(function() { div.style.opacity = '1'; }, 10);
-        setTimeout(function() {
-            div.style.opacity = '0';
-            setTimeout(function() { if (div.parentNode) div.remove(); }, 300);
-        }, 4000);
+        setTimeout(() => div.classList.add('show'), 10);
+        setTimeout(() => { div.classList.remove('show'); setTimeout(() => div.remove(), 300); }, 4000);
     }
 };
 
-// ==================== BOOT ====================
-document.addEventListener('DOMContentLoaded', function() {
-    App.init();
-});
+document.addEventListener('DOMContentLoaded', function() { App.init(); });
