@@ -1,5 +1,15 @@
 // ============================================================
-// js/app.js - LotoQuant Frontend v2.2 (+ Meus Jogos)
+// js/app.js - LotoQuant Frontend v3.0 (Corrigido + Inteligente)
+// ============================================================
+// Correções v3.0:
+// - Importação INTELIGENTE: verifica Supabase antes, importa só novos
+// - Forçar Atualização busca apenas concursos novos (não reimporta tudo)
+// - Compatível com backend v3.2.0 (8 modelos de IA)
+// - parseArray() em todos os pontos que recebem números
+// - /api/resultados/ultimo retorna objeto direto (sem .ultimo)
+// - Textos atualizados para "8 modelos de IA"
+// - Confiança calculada corretamente em Previsões/Validação/Fechamento
+// - Meus Jogos com recálculo de confiança funcional
 // ============================================================
 const App = {
     currentPage: 'dashboard',
@@ -11,7 +21,7 @@ const App = {
     jogosConfig: {
         'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  apiNome: 'megasena',       trevos: false },
         'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, apiNome: 'lotofacil',      trevos: false },
-        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, apiNome: 'lotomania',      trevos: false },
+        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 20, apiNome: 'lotomania',      trevos: false },
         'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2 }
     },
 
@@ -25,10 +35,21 @@ const App = {
     // ========================================
     parseArray(val) {
         if (!val) return [];
-        if (Array.isArray(val)) return val;
+        if (Array.isArray(val)) return val.map(n => parseInt(n, 10)).filter(n => !isNaN(n));
         if (typeof val === 'string') {
-            try { return JSON.parse(val); } catch(e) { return []; }
+            val = val.trim();
+            if (!val) return [];
+            try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) return parsed.map(n => parseInt(n, 10)).filter(n => !isNaN(n));
+            } catch(e) {}
+            // Tentar separadores
+            const parts = val.split(/[,;\s]+/).filter(p => p.trim());
+            const nums = parts.map(n => parseInt(n, 10)).filter(n => !isNaN(n));
+            if (nums.length > 0) return nums;
+            return [];
         }
+        if (typeof val === 'number') return [val];
         return [];
     },
 
@@ -160,6 +181,36 @@ const App = {
     },
 
     // ========================================
+    // HELPER: Buscar último concurso salvo no backend
+    // Retorna { concurso: N, total: N } ou { concurso: 0, total: 0 }
+    // ========================================
+    async getUltimoConcursoSalvo(jogo_slug) {
+        try {
+            const data = await this.apiRequest(`/api/resultados/?jogo_slug=${jogo_slug}&limit=1`);
+            const concurso = data.resultados?.[0]?.concurso || 0;
+            const total = data.total || 0;
+            return { concurso, total };
+        } catch(e) {
+            return { concurso: 0, total: 0 };
+        }
+    },
+
+    // ========================================
+    // HELPER: Buscar último concurso na API da Caixa
+    // Retorna número do concurso ou 0
+    // ========================================
+    async getUltimoConcursoCaixa(apiNome) {
+        try {
+            const resp = await fetch(`https://servicebus2.caixa.gov.br/portaldeloterias/api/${apiNome}/`);
+            if (!resp.ok) return 0;
+            const data = await resp.json();
+            return data.numero || 0;
+        } catch(e) {
+            return 0;
+        }
+    },
+
+    // ========================================
     // DASHBOARD
     // ========================================
     async loadDashboard() {
@@ -221,11 +272,11 @@ const App = {
                     <p style="color:#888;font-size:13px;">Último Concurso</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.modelos_usados?.length || 6}</p>
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.modelos_usados?.length || 8}</p>
                     <p style="color:#888;font-size:13px;">Modelos de IA</p>
                 </div>
             </div>
-            <h3 style="color:#e0e0e0;margin-bottom:12px;">🔥 Top 15 Números Quentes</h3>
+            <h3 style="color:#e0e0e0;margin-bottom:12px;">🔥 Top Números Quentes</h3>
             <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;">`;
             for (const n of (data.top_quentes || [])) {
                 const cor = n.classificacao === 'quente' ? '#e74c3c' : n.classificacao === 'morno' ? '#f39c12' : '#3498db';
@@ -233,11 +284,11 @@ const App = {
                     <p style="font-size:24px;font-weight:bold;color:${cor};">${String(n.numero).padStart(2,'0')}</p>
                     <p style="color:#e0e0e0;font-size:13px;">${(n.score*100).toFixed(1)}%</p>
                     <p style="color:#888;font-size:11px;">${n.classificacao}</p>
-                    <p style="color:#666;font-size:10px;">Freq: ${(n.frequencia_recente*100).toFixed(1)}% | Atraso: ${n.atraso}</p>
+                    <p style="color:#666;font-size:10px;">Freq: ${((n.frequencia_recente||0)*100).toFixed(1)}% | Atraso: ${n.atraso}</p>
                 </div>`;
             }
             html += '</div>';
-            html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">❄️ Top 10 Números Frios</h3><div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;">';
+            html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">❄️ Top Números Frios</h3><div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;">';
             for (const n of (data.top_frios || [])) {
                 html += `<div style="background:#1a1a2e;border-left:4px solid #3498db;padding:12px;border-radius:8px;min-width:100px;">
                     <p style="font-size:20px;font-weight:bold;color:#3498db;">${String(n.numero).padStart(2,'0')}</p>
@@ -270,7 +321,7 @@ const App = {
         if (!container) return;
         const qtd = parseInt(document.getElementById('qtd-previsoes')?.value || '5');
         try {
-            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando previsões com ensemble de 6 modelos...</p>';
+            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando previsões com ensemble de 8 modelos...</p>';
             const data = await this.apiRequest('/api/previsoes/gerar', {
                 method: 'POST',
                 body: JSON.stringify({ jogo_slug: this.currentGame, quantidade_jogos: qtd })
@@ -285,26 +336,31 @@ const App = {
 
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_concursos_analisados}</p>
+                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_concursos_analisados || 0}</p>
                     <p style="color:#888;font-size:13px;">Concursos Analisados</p>
+                </div>
+                <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${(data.modelos_usados || []).length}</p>
+                    <p style="color:#888;font-size:13px;">Modelos de IA</p>
                 </div>
             </div>`;
             html += '<div style="display:grid;gap:16px;">';
-            data.previsoes?.forEach((p, i) => {
+            (data.previsoes || []).forEach((p, i) => {
                 const nums = this.parseArray(p.numeros).map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${String(n).padStart(2,'0')}</span>`).join(' ');
                 const trevosArr = this.parseArray(p.trevos);
                 const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${t}</span>`).join(' ') : '';
-                const confCor = p.confianca > 70 ? '#27ae60' : p.confianca > 50 ? '#f39c12' : '#e74c3c';
+                const conf = p.confianca || 0;
+                const confCor = conf > 70 ? '#27ae60' : conf > 50 ? '#f39c12' : '#e74c3c';
                 html += `<div style="background:#1a1a2e;padding:20px;border-radius:12px;border:1px solid #333;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <h4 style="color:#e0e0e0;margin:0;">Jogo ${i+1}</h4>
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <span style="background:${confCor};color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;">${p.confianca}%</span>
+                            <span style="background:${confCor};color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;">${conf}%</span>
                             <button onclick="App.salvarJogoDaPrevisao(${i})" style="background:#00d4ff;color:#0d0d1a;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" title="Salvar em Meus Jogos">💾 Salvar</button>
                         </div>
                     </div>
                     <div style="margin-bottom:8px;">${nums}${trevos}</div>
-                    <p style="color:#888;font-size:12px;">Score: ${p.score}</p>
+                    <p style="color:#888;font-size:12px;">Score: ${p.score || 0} | Método: ${p.metodo || 'ensemble'}</p>
                 </div>`;
             });
             html += '</div>';
@@ -330,14 +386,14 @@ const App = {
         if (!container) return;
         const numerosStr = document.getElementById('validar-numeros')?.value || '';
         const trevosStr  = document.getElementById('validar-trevos')?.value || '';
-        const numeros = numerosStr.split(/[,\s]+/).filter(n => n).map(Number);
-        const trevos  = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number) : [];
-        if (numeros.length === 0 || numeros.some(isNaN)) {
+        const numeros = numerosStr.split(/[,\s]+/).filter(n => n).map(Number).filter(n => !isNaN(n));
+        const trevos  = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number).filter(n => !isNaN(n)) : [];
+        if (numeros.length === 0) {
             this.showNotification('Preencha os números corretamente', 'error');
             return;
         }
         try {
-            container.innerHTML = '<p style="color:#888;text-align:center;">Validando jogo...</p>';
+            container.innerHTML = '<p style="color:#888;text-align:center;">Validando jogo com 8 modelos de IA...</p>';
             const data = await this.apiRequest('/api/validacao/validar-jogo', {
                 method: 'POST',
                 body: JSON.stringify({ jogo_slug: this.currentGame, numeros, trevos })
@@ -349,22 +405,23 @@ const App = {
                 jogo_slug: this.currentGame
             };
 
-            const confCor = data.confianca > 70 ? '#27ae60' : data.confianca > 50 ? '#f39c12' : '#e74c3c';
+            const conf = data.confianca || 0;
+            const confCor = conf > 70 ? '#27ae60' : conf > 50 ? '#f39c12' : '#e74c3c';
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:2px solid ${confCor};">
-                    <p style="font-size:36px;font-weight:bold;color:${confCor};">${data.confianca}%</p>
+                    <p style="font-size:36px;font-weight:bold;color:${confCor};">${conf}%</p>
                     <p style="color:#888;font-size:13px;">Confiança</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.classificacao}</p>
+                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.classificacao || '-'}</p>
                     <p style="color:#888;font-size:13px;">Classificação</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.distribuicao?.pares}P / ${data.distribuicao?.impares}I</p>
+                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.distribuicao?.pares || 0}P / ${data.distribuicao?.impares || 0}I</p>
                     <p style="color:#888;font-size:13px;">Par/Ímpar</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.distribuicao?.soma}</p>
+                    <p style="font-size:24px;font-weight:bold;color:#e0e0e0;">${data.distribuicao?.soma || 0}</p>
                     <p style="color:#888;font-size:13px;">Soma</p>
                 </div>
             </div>
@@ -377,22 +434,31 @@ const App = {
                 const cor = n.classificacao === 'quente' ? '#e74c3c' : n.classificacao === 'morno' ? '#f39c12' : '#3498db';
                 html += `<div style="background:#1a1a2e;border-left:4px solid ${cor};padding:10px;border-radius:8px;min-width:80px;text-align:center;">
                     <p style="font-size:22px;font-weight:bold;color:${cor};">${String(n.numero).padStart(2,'0')}</p>
-                    <p style="color:#e0e0e0;font-size:12px;">${(n.score*100).toFixed(1)}%</p>
-                    <p style="color:#888;font-size:10px;">${n.classificacao}</p>
+                    <p style="color:#e0e0e0;font-size:12px;">${((n.score||0)*100).toFixed(1)}%</p>
+                    <p style="color:#888;font-size:10px;">${n.classificacao || ''}</p>
                 </div>`;
             }
             html += '</div>';
             if (data.sugestoes_melhoria?.length > 0) {
-                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">Sugestões de Melhoria</h3><div style="margin-bottom:24px;">';
+                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">💡 Sugestões de Melhoria</h3><div style="margin-bottom:24px;">';
                 for (const s of data.sugestoes_melhoria) {
-                    html += `<p style="color:#e0e0e0;padding:8px;background:#1a1a2e;border-radius:6px;margin-bottom:6px;">Trocar <span style="color:#e74c3c;font-weight:bold;">${String(s.trocar).padStart(2,'0')}</span> por <span style="color:#27ae60;font-weight:bold;">${String(s.por).padStart(2,'0')}</span> (ganho: +${(s.ganho_score*100).toFixed(1)}%)</p>`;
+                    html += `<p style="color:#e0e0e0;padding:8px;background:#1a1a2e;border-radius:6px;margin-bottom:6px;">Trocar <span style="color:#e74c3c;font-weight:bold;">${String(s.trocar).padStart(2,'0')}</span> por <span style="color:#27ae60;font-weight:bold;">${String(s.por).padStart(2,'0')}</span> (ganho: +${((s.ganho_score||0)*100).toFixed(1)}%)</p>`;
                 }
                 html += '</div>';
             }
             if (data.recomendacoes?.length > 0) {
-                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">Recomendações</h3><div style="margin-bottom:24px;">';
+                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">📋 Recomendações</h3><div style="margin-bottom:24px;">';
                 for (const r of data.recomendacoes) {
                     html += `<p style="color:#e0e0e0;padding:6px 0;">• ${r}</p>`;
+                }
+                html += '</div>';
+            }
+            if (data.pares_frequentes_no_jogo?.length > 0) {
+                html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">🔗 Pares Frequentes no seu Jogo</h3><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">';
+                for (const p of data.pares_frequentes_no_jogo) {
+                    html += `<div style="background:#1a1a2e;padding:6px 12px;border-radius:8px;border:1px solid #333;">
+                        <span style="color:#00d4ff;">${p.par}</span> <span style="color:#888;">${p.frequencia}x</span>
+                    </div>`;
                 }
                 html += '</div>';
             }
@@ -419,30 +485,30 @@ const App = {
         const garantia = document.getElementById('fechamento-garantia')?.value || 'quadra';
         const tamanho  = parseInt(document.getElementById('fechamento-tamanho')?.value || '18');
         try {
-            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando fechamento combinatório...</p>';
+            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando fechamento combinatório com 8 modelos...</p>';
             const data = await this.apiRequest(`/api/previsoes/fechamento?jogo_slug=${this.currentGame}&garantia=${garantia}&tamanho_universo=${tamanho}`, { method: 'POST' });
             this._lastFechamento = (data.jogos || []).map(j => ({
                 numeros: this.parseArray(j.numeros),
                 trevos: this.parseArray(j.trevos),
-                confianca: j.score || 0,
+                confianca: Math.round((j.score || 0) * 100),
                 jogo_slug: this.currentGame
             }));
 
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_jogos}</p>
+                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_jogos || 0}</p>
                     <p style="color:#888;font-size:13px;">Total de Jogos</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#00ff88;">${data.tamanho_universo}</p>
+                    <p style="font-size:28px;font-weight:bold;color:#00ff88;">${data.tamanho_universo || 0}</p>
                     <p style="color:#888;font-size:13px;">Universo</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.cobertura}%</p>
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.cobertura || 0}%</p>
                     <p style="color:#888;font-size:13px;">Cobertura</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.garantia}</p>
+                    <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.garantia || '-'}</p>
                     <p style="color:#888;font-size:13px;">Garantia</p>
                 </div>
             </div>`;
@@ -453,8 +519,10 @@ const App = {
                 const nums = this.parseArray(j.numeros).map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:3px 8px;border-radius:50%;font-weight:bold;font-size:13px;margin:1px;">${String(n).padStart(2,'0')}</span>`).join(' ');
                 const trevosArr = this.parseArray(j.trevos);
                 const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:3px 8px;border-radius:50%;font-weight:bold;font-size:13px;margin:1px;">${t}</span>`).join(' ') : '';
+                const scorePercent = Math.round((j.score || 0) * 100);
+                const scoreCor = scorePercent > 60 ? '#27ae60' : scorePercent > 40 ? '#f39c12' : '#e74c3c';
                 html += `<div style="background:#1a1a2e;padding:14px;border-radius:10px;border:1px solid #333;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <div><strong style="color:#888;">Jogo ${i+1}</strong> ${nums}${trevos} <span style="color:#888;font-size:12px;margin-left:8px;">Score: ${j.score}</span></div>
+                    <div><strong style="color:#888;">Jogo ${i+1}</strong> ${nums}${trevos} <span style="color:${scoreCor};font-size:12px;margin-left:8px;font-weight:bold;">${scorePercent}%</span></div>
                     <button onclick="App.salvarJogoDoFechamento(${i})" style="background:#00d4ff;color:#0d0d1a;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" title="Salvar em Meus Jogos">💾</button>
                 </div>`;
             });
@@ -489,20 +557,20 @@ const App = {
             });
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.concursos_testados}</p>
+                    <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.concursos_testados || 0}</p>
                     <p style="color:#888;font-size:13px;">Concursos Testados</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#00ff88;">${data.total_cartelas}</p>
+                    <p style="font-size:28px;font-weight:bold;color:#00ff88;">${data.total_cartelas || 0}</p>
                     <p style="color:#888;font-size:13px;">Total Cartelas</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.taxa_4_acertos}%</p>
-                    <p style="color:#888;font-size:13px;">Taxa 4 Acertos</p>
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.media_acertos || 0}</p>
+                    <p style="color:#888;font-size:13px;">Média Acertos</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.taxa_5_acertos}%</p>
-                    <p style="color:#888;font-size:13px;">Taxa 5 Acertos</p>
+                    <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.taxa_4_acertos || 0}%</p>
+                    <p style="color:#888;font-size:13px;">Taxa 4+ Acertos</p>
                 </div>
             </div>
             <h3 style="color:#e0e0e0;margin-bottom:12px;">Distribuição de Acertos</h3>
@@ -522,7 +590,7 @@ const App = {
             if (data.melhores_resultados?.length > 0) {
                 html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">Melhores Resultados</h3><div style="display:grid;gap:8px;margin-bottom:24px;">';
                 for (const m of data.melhores_resultados) {
-                    html += `<div style="background:#1a1a2e;padding:12px;border-radius:8px;border:1px solid #333;display:flex;justify-content:space-between;align-items:center;">
+                    html += `<div style="background:#1a1a2e;padding:12px;border-radius:8px;border:1px solid #333;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                         <span style="color:#e0e0e0;">Concurso ${m.concurso}</span>
                         <span style="color:#27ae60;font-weight:bold;">${m.acertos} acertos</span>
                         <span style="color:#888;font-size:12px;">${(m.sorteados||[]).map(n => String(n).padStart(2,'0')).join(', ')}</span>
@@ -550,12 +618,12 @@ const App = {
                 return;
             }
             let html = `<div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;margin-bottom:24px;">
-                <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.total}</p>
+                <p style="font-size:28px;font-weight:bold;color:#e74c3c;">${data.total || data.alertas.length}</p>
                 <p style="color:#888;font-size:13px;">Alertas Encontrados</p>
             </div><div style="display:grid;gap:12px;">`;
             for (const a of data.alertas) {
-                const icon = a.tipo === 'atraso_critico' ? '⏰' : a.tipo === 'score_alto' ? '🔥' : '📊';
-                const cor  = a.tipo === 'atraso_critico' ? '#e74c3c' : '#27ae60';
+                const icon = a.tipo === 'atraso_critico' ? '⏰' : a.tipo === 'convergencia' ? '🤝' : a.tipo === 'acumulacao' ? '💰' : '📊';
+                const cor  = a.tipo === 'atraso_critico' ? '#e74c3c' : a.tipo === 'convergencia' ? '#27ae60' : a.tipo === 'acumulacao' ? '#feca57' : '#00d4ff';
                 html += `<div style="background:#1a1a2e;border-left:4px solid ${cor};padding:14px;border-radius:8px;">
                     <p style="color:#e0e0e0;">${icon} ${a.mensagem}</p>
                 </div>`;
@@ -577,8 +645,8 @@ const App = {
         const trevosStr  = document.getElementById('inserir-trevos')?.value || '';
         const premio     = parseFloat(document.getElementById('inserir-premio')?.value || '0');
         const acumulou   = document.getElementById('inserir-acumulou')?.checked || false;
-        const numeros = numerosStr.split(/[,\s]+/).filter(n => n).map(Number);
-        const trevos  = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number) : [];
+        const numeros = numerosStr.split(/[,\s]+/).filter(n => n).map(Number).filter(n => !isNaN(n));
+        const trevos  = trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n).map(Number).filter(n => !isNaN(n)) : [];
         if (!concurso || !data || numeros.length === 0) {
             this.showNotification('Preencha todos os campos obrigatórios', 'error');
             return;
@@ -606,7 +674,8 @@ const App = {
     },
 
     // ========================================
-    // IMPORTAR HISTÓRICO VIA PROXY
+    // IMPORTAR TODOS OS JOGOS (INTELIGENTE)
+    // Verifica Supabase primeiro, importa só novos
     // ========================================
     async importarHistoricoProxy() {
         const btn = document.getElementById('btn-importar-todos');
@@ -615,97 +684,198 @@ const App = {
         const desdeAno = parseInt(document.getElementById('import-desde')?.value || '2022');
         btn.disabled = true;
         btn.textContent = 'Importando...';
-        const jogos = ['mega-sena','lotofacil','lotomania','mais-milionaria'];
+
+        const jogos = ['mega-sena', 'lotofacil', 'lotomania', 'mais-milionaria'];
         let totalGeral = 0;
         let resultadoHtml = '';
+
         for (const jogo of jogos) {
             const resultado = await this.importarUmJogo(jogo, desdeAno, statusEl, resultadoHtml);
             resultadoHtml = resultado.html;
             totalGeral += resultado.inseridos;
         }
-        resultadoHtml += `<p style="color:#00d4ff;font-weight:bold;margin-top:12px;">📊 Total importado: ${totalGeral} concursos</p>`;
+
+        if (totalGeral > 0) {
+            resultadoHtml += `<p style="color:#00d4ff;font-weight:bold;margin-top:12px;">📊 ${totalGeral} concursos novos importados!</p>`;
+        } else {
+            resultadoHtml += `<p style="color:#27ae60;font-weight:bold;margin-top:12px;">✅ Todos os jogos já estão atualizados!</p>`;
+        }
+
         if (statusEl) statusEl.innerHTML = resultadoHtml;
         btn.disabled = false;
         btn.textContent = 'Importar Todos os Jogos';
-        this.showNotification(`Importação concluída! ${totalGeral} concursos importados.`, 'success');
+        this.showNotification(
+            totalGeral > 0
+                ? `Importação concluída! ${totalGeral} novos concursos.`
+                : 'Todos os jogos já estão atualizados!',
+            'success'
+        );
         this.loadDashboard();
     },
 
+    // ========================================
+    // IMPORTAR UM JOGO (INTELIGENTE v3.0)
+    // Verifica último salvo no Supabase,
+    // compara com API da Caixa, importa só novos
+    // ========================================
     async importarUmJogo(jogo, desdeAno, statusEl, prevHtml = '') {
-        const apiNomes = { 'mega-sena':'megasena','lotofacil':'lotofacil','lotomania':'lotomania','mais-milionaria':'maismilionaria' };
-        const estimativas = {
-    'mega-sena':       {1996:1, 2000:150, 2005:500, 2010:1150, 2015:1700, 2018:2000, 2019:2100, 2020:2200, 2021:2330, 2022:2460, 2023:2600, 2024:2750, 2025:2880},
-    'lotofacil':       {1996:1, 2000:1, 2003:1, 2005:200, 2010:800, 2015:1200, 2018:1600, 2019:1700, 2020:1900, 2021:2100, 2022:2400, 2023:2700, 2024:3100, 2025:3400},
-    'lotomania':       {1996:1, 1999:1, 2000:50, 2005:500, 2010:1050, 2015:1550, 2018:1800, 2019:1900, 2020:2050, 2021:2150, 2022:2300, 2023:2450, 2024:2600, 2025:2750},
-    'mais-milionaria': {1996:1, 2000:1, 2005:1, 2010:1, 2015:1, 2018:1, 2019:1, 2020:1, 2021:1, 2022:1, 2023:50, 2024:150, 2025:250}
-};
+        const cfg = this.jogosConfig[jogo];
+        if (!cfg) return { html: prevHtml, inseridos: 0 };
+        const apiNome = cfg.apiNome;
         const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
-        const apiNome = apiNomes[jogo];
+
         let resultadoHtml = prevHtml;
         let inseridos = 0;
+        let erros = 0;
+
         const updateStatus = (msg) => { if (statusEl) statusEl.innerHTML = msg; };
+
         try {
-            updateStatus(resultadoHtml + `<p style="color:#888;">🔄 ${jogo}: buscando último concurso...</p>`);
-            const respUltimo = await fetch(`${caixaBase}/${apiNome}`);
-            if (!respUltimo.ok) {
-                resultadoHtml += `<p style="color:#f39c12;">⚠️ ${jogo}: API da Caixa retornou ${respUltimo.status}</p>`;
-                return { html: resultadoHtml, inseridos: 0 };
-            }
-            const dataUltimo = await respUltimo.json();
-            const ultimoCaixa = dataUltimo.numero;
-            let ultimoDB = 0;
-            try { const respDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`); ultimoDB = respDB.ultimo?.concurso || 0; } catch(e) { ultimoDB = 0; }
-            const estJogo = estimativas[jogo] || {};
-            const desdeConc = estJogo[desdeAno] || 1;
-            const inicio = Math.max(desdeConc, ultimoDB + 1);
-            if (inicio > ultimoCaixa) {
-                resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: já atualizado (concurso ${ultimoDB})</p>`;
+            // 1) Verificar último concurso JÁ SALVO no Supabase
+            updateStatus(resultadoHtml + `<p style="color:#888;">🔍 ${jogo}: verificando dados salvos...</p>`);
+            const salvo = await this.getUltimoConcursoSalvo(jogo);
+            const ultimoSalvo = salvo.concurso;
+            const totalSalvo = salvo.total;
+
+            // 2) Buscar último concurso DISPONÍVEL na API da Caixa
+            updateStatus(resultadoHtml + `<p style="color:#888;">🔍 ${jogo}: verificando API da Caixa...</p>`);
+            const ultimoCaixa = await this.getUltimoConcursoCaixa(apiNome);
+
+            if (!ultimoCaixa) {
+                resultadoHtml += `<p style="color:#f39c12;">⚠️ ${jogo}: API da Caixa indisponível</p>`;
                 updateStatus(resultadoHtml);
                 return { html: resultadoHtml, inseridos: 0 };
             }
-            const totalConc = ultimoCaixa - inicio + 1;
-            updateStatus(resultadoHtml + `<p style="color:#888;">🔄 ${jogo}: importando ${totalConc} concursos (${inicio} → ${ultimoCaixa})...</p>`);
+
+            // 3) Se já está atualizado, pular
+            if (ultimoSalvo >= ultimoCaixa) {
+                resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: já atualizado (${totalSalvo} concursos, último #${ultimoSalvo})</p>`;
+                updateStatus(resultadoHtml);
+                return { html: resultadoHtml, inseridos: 0 };
+            }
+
+            // 4) Calcular ponto de início
+            let concursoInicial;
+            if (ultimoSalvo > 0) {
+                // Já tem dados → importar apenas os novos
+                concursoInicial = ultimoSalvo + 1;
+                resultadoHtml += `<p style="color:#00d4ff;">ℹ️ ${jogo}: ${totalSalvo} concursos salvos. Buscando #${concursoInicial} a #${ultimoCaixa}...</p>`;
+            } else {
+                // Sem dados → usar estimativa pelo ano
+                const estimativas = {
+                    'mega-sena':       {1996:1, 2000:150, 2005:500, 2010:1150, 2015:1700, 2018:2000, 2019:2100, 2020:2200, 2021:2330, 2022:2460, 2023:2600, 2024:2750, 2025:2880},
+                    'lotofacil':       {2003:1, 2005:200, 2010:800, 2015:1200, 2018:1600, 2019:1700, 2020:1900, 2021:2100, 2022:2400, 2023:2700, 2024:3100, 2025:3400},
+                    'lotomania':       {1999:1, 2000:50, 2005:500, 2010:1050, 2015:1550, 2018:1800, 2019:1900, 2020:2050, 2021:2150, 2022:2300, 2023:2450, 2024:2600, 2025:2750},
+                    'mais-milionaria': {2022:1, 2023:50, 2024:150, 2025:250}
+                };
+                const estJogo = estimativas[jogo] || {};
+                concursoInicial = 1;
+                const anos = Object.keys(estJogo).map(Number).sort((a,b) => a - b);
+                for (const a of anos) {
+                    if (a <= desdeAno) concursoInicial = estJogo[a];
+                }
+                resultadoHtml += `<p style="color:#888;">📥 ${jogo}: importando desde concurso #${concursoInicial} até #${ultimoCaixa}...</p>`;
+            }
+            updateStatus(resultadoHtml);
+
+            const totalParaImportar = ultimoCaixa - concursoInicial + 1;
+            if (totalParaImportar <= 0) {
+                resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: já atualizado!</p>`;
+                updateStatus(resultadoHtml);
+                return { html: resultadoHtml, inseridos: 0 };
+            }
+
+            // 5) Importar em lotes
             let batch = [];
-            let erros = 0;
-            for (let num = inicio; num <= ultimoCaixa; num++) {
+            const BATCH_SIZE = 30;
+
+            for (let num = concursoInicial; num <= ultimoCaixa; num++) {
                 try {
                     const resp = await fetch(`${caixaBase}/${apiNome}/${num}`);
                     if (!resp.ok) { erros++; continue; }
                     const d = await resp.json();
-                    batch.push({
-                        concurso: d.numero || num,
-                        data_sorteio: d.dataApuracao || '',
-                        numeros: (d.listaDezenas || []).map(n => parseInt(n,10)),
-                        trevos: (d.trevosSorteados || []).map(n => parseInt(n,10)),
-                        premio_principal: d.listaRateioPremio?.[0]?.valorPremio || 0,
-                        acumulou: d.acumulado || false
-                    });
-                    if (batch.length >= 30) {
-                        try {
-                            await this.apiRequest('/api/importar-proxy', { method:'POST', body:JSON.stringify({jogo_slug:jogo,resultados:batch}) });
-                            inseridos += batch.length;
-                        } catch(e) { erros += batch.length; console.error(`Erro batch ${jogo}:`, e); }
-                        batch = [];
-                        updateStatus(resultadoHtml + `<p style="color:#888;">🔄 ${jogo}: ${inseridos}/${totalConc} importados...</p>`);
+
+                    let numeros = (d.listaDezenas || []).map(n => parseInt(n, 10));
+                    let trevos = (d.trevosSorteados || d.listaTrevos || []).map(n => parseInt(n, 10));
+                    let premio = 0;
+                    if (d.listaRateioPremio && d.listaRateioPremio.length > 0) {
+                        premio = d.listaRateioPremio[0].valorPremio || 0;
                     }
+
+                    if (numeros.length > 0) {
+                        batch.push({
+                            concurso: d.numero || num,
+                            data_sorteio: d.dataApuracao || '',
+                            numeros: numeros,
+                            trevos: trevos,
+                            premio_principal: premio,
+                            acumulou: d.acumulado || false
+                        });
+                    }
+
+                    // Enviar lote
+                    if (batch.length >= BATCH_SIZE) {
+                        try {
+                            const result = await this.apiRequest('/api/importar-proxy', {
+                                method: 'POST',
+                                body: JSON.stringify({ jogo_slug: jogo, resultados: batch })
+                            });
+                            inseridos += result.inseridos || 0;
+                            erros += result.erros || 0;
+                        } catch(e) {
+                            erros += batch.length;
+                            console.error(`Erro batch ${jogo}:`, e.message);
+                        }
+                        batch = [];
+
+                        // Atualizar progresso
+                        const progresso = Math.round(((num - concursoInicial + 1) / totalParaImportar) * 100);
+                        const tempHtml = resultadoHtml.replace(/<p[^>]*>[^<]*<\/p>$/, '');
+                        updateStatus(tempHtml + `<p style="color:#888;">🔄 ${jogo}: ${progresso}% (${inseridos} novos${erros > 0 ? ', '+erros+' erros' : ''})...</p>`);
+                    }
+
+                    // Pausa a cada 5 concursos
                     if (num % 5 === 0) await new Promise(r => setTimeout(r, 150));
-                } catch(e) { erros++; }
+
+                } catch(e) {
+                    erros++;
+                }
             }
+
+            // Enviar último lote
             if (batch.length > 0) {
-                try { await this.apiRequest('/api/importar-proxy', { method:'POST', body:JSON.stringify({jogo_slug:jogo,resultados:batch}) }); inseridos += batch.length; }
-                catch(e) { erros += batch.length; }
+                try {
+                    const result = await this.apiRequest('/api/importar-proxy', {
+                        method: 'POST',
+                        body: JSON.stringify({ jogo_slug: jogo, resultados: batch })
+                    });
+                    inseridos += result.inseridos || 0;
+                    erros += result.erros || 0;
+                } catch(e) {
+                    erros += batch.length;
+                }
             }
-            resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: ${inseridos} concursos importados${erros > 0 ? ` (${erros} erros)` : ''}</p>`;
+
+            // Resultado final
+            if (inseridos > 0) {
+                resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: ${inseridos} concursos novos importados (total: ${totalSalvo + inseridos})${erros > 0 ? ' ⚠️ '+erros+' erros' : ''}</p>`;
+            } else if (erros === 0) {
+                resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: já atualizado (${totalSalvo} concursos)</p>`;
+            } else {
+                resultadoHtml += `<p style="color:#f39c12;">⚠️ ${jogo}: ${inseridos} importados, ${erros} erros</p>`;
+            }
             updateStatus(resultadoHtml);
+
         } catch(err) {
             resultadoHtml += `<p style="color:#e74c3c;">❌ ${jogo}: ${err.message}</p>`;
             updateStatus(resultadoHtml);
         }
+
         return { html: resultadoHtml, inseridos };
     },
 
     // ========================================
-    // FORÇAR ATUALIZAÇÃO (via proxy)
+    // FORÇAR ATUALIZAÇÃO (apenas concursos novos)
     // ========================================
     async forcarAtualizacao() {
         const btn = document.getElementById('btn-atualizar');
@@ -713,63 +883,101 @@ const App = {
         if (!btn) return;
         btn.disabled = true;
         btn.textContent = 'Atualizando...';
-        await this.atualizarViaProxy(statusEl);
+
+        const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
+        const jogos = [
+            { slug: 'mega-sena',       api: 'megasena' },
+            { slug: 'lotofacil',       api: 'lotofacil' },
+            { slug: 'lotomania',       api: 'lotomania' },
+            { slug: 'mais-milionaria', api: 'maismilionaria' }
+        ];
+
+        let html = '';
+        let totalNovos = 0;
+
+        for (const { slug, api } of jogos) {
+            try {
+                // Buscar último da Caixa
+                const resp = await fetch(`${caixaBase}/${api}/`);
+                if (!resp.ok) {
+                    html += `<p style="color:#f39c12;">⚠️ ${slug}: API Caixa erro ${resp.status}</p>`;
+                    continue;
+                }
+                const d = await resp.json();
+                const ultimoCaixa = d.numero;
+
+                // Buscar último salvo
+                const salvo = await this.getUltimoConcursoSalvo(slug);
+                const ultimoSalvo = salvo.concurso;
+
+                if (ultimoSalvo >= ultimoCaixa) {
+                    html += `<p style="color:#888;">➡️ ${slug}: já atualizado (#${ultimoSalvo})</p>`;
+                    continue;
+                }
+
+                // Importar concursos faltantes
+                const batch = [];
+                for (let num = ultimoSalvo + 1; num <= ultimoCaixa; num++) {
+                    try {
+                        const r = await fetch(`${caixaBase}/${api}/${num}`);
+                        if (!r.ok) continue;
+                        const data = await r.json();
+                        batch.push({
+                            concurso: data.numero || num,
+                            data_sorteio: data.dataApuracao || '',
+                            numeros: (data.listaDezenas || []).map(n => parseInt(n, 10)),
+                            trevos: (data.trevosSorteados || data.listaTrevos || []).map(n => parseInt(n, 10)),
+                            premio_principal: data.listaRateioPremio?.[0]?.valorPremio || 0,
+                            acumulou: data.acumulado || false
+                        });
+                    } catch(e) {}
+                }
+
+                if (batch.length > 0) {
+                    const result = await this.apiRequest('/api/importar-proxy', {
+                        method: 'POST',
+                        body: JSON.stringify({ jogo_slug: slug, resultados: batch })
+                    });
+                    const novos = result.inseridos || 0;
+                    totalNovos += novos;
+                    html += `<p style="color:#27ae60;">✅ ${slug}: +${novos} concursos novos (até #${ultimoCaixa})</p>`;
+                } else {
+                    html += `<p style="color:#888;">➡️ ${slug}: sem novos concursos</p>`;
+                }
+
+            } catch(e) {
+                html += `<p style="color:#e74c3c;">❌ ${slug}: ${e.message}</p>`;
+            }
+        }
+
+        if (totalNovos > 0) {
+            html += `<p style="color:#00d4ff;font-weight:bold;margin-top:12px;">🔄 ${totalNovos} concursos novos adicionados!</p>`;
+        } else {
+            html += `<p style="color:#27ae60;font-weight:bold;margin-top:12px;">✅ Tudo atualizado!</p>`;
+        }
+
+        if (statusEl) statusEl.innerHTML = html;
         btn.disabled = false;
         btn.textContent = 'Forçar Atualização';
-        // Recalcular confiança dos jogos salvos após atualizar
+        this.showNotification(
+            totalNovos > 0 ? `${totalNovos} novos concursos!` : 'Já está atualizado!',
+            'success'
+        );
+
+        // Recalcular confiança dos jogos salvos
         this.recalcularConfiancaTodos();
         this.loadDashboard();
-    },
-
-    async atualizarViaProxy(statusEl) {
-        const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
-        const apiNomes = { 'mega-sena':'megasena','lotofacil':'lotofacil','lotomania':'lotomania','mais-milionaria':'maismilionaria' };
-        let html = '';
-        for (const [jogo, apiNome] of Object.entries(apiNomes)) {
-            try {
-                const resp = await fetch(`${caixaBase}/${apiNome}`);
-                if (!resp.ok) { html += `<p style="color:#f39c12;">⚠️ ${jogo}: erro ${resp.status}</p>`; continue; }
-                const d = await resp.json();
-                const concurso = d.numero;
-                let ultimoDB = 0;
-                try { const rDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`); ultimoDB = rDB.ultimo?.concurso || 0; } catch(e){}
-                if (concurso <= ultimoDB) {
-                    html += `<p style="color:#888;">➡️ ${jogo}: já atualizado (${ultimoDB})</p>`;
-                } else {
-                    await this.apiRequest('/api/importar-proxy', {
-                        method:'POST',
-                        body:JSON.stringify({jogo_slug:jogo,resultados:[{
-                            concurso,
-                            data_sorteio: d.dataApuracao || '',
-                            numeros: (d.listaDezenas||[]).map(n => parseInt(n,10)),
-                            trevos: (d.trevosSorteados||[]).map(n => parseInt(n,10)),
-                            premio_principal: d.listaRateioPremio?.[0]?.valorPremio || 0,
-                            acumulou: d.acumulado || false
-                        }]})
-                    });
-                    html += `<p style="color:#27ae60;">✅ ${jogo}: atualizado para concurso ${concurso}</p>`;
-                }
-            } catch(e) { html += `<p style="color:#e74c3c;">❌ ${jogo}: ${e.message}</p>`; }
-        }
-        if (statusEl) statusEl.innerHTML = html;
-        this.showNotification('Atualização concluída!', 'success');
     },
 
     // ================================================================
     // MEUS JOGOS — Módulo completo
     // ================================================================
     setupMeusJogos() {
-        // Botão Adicionar
         document.getElementById('btn-adicionar-jogo')?.addEventListener('click', () => this.abrirModalJogo());
-        // Botão Recalcular
         document.getElementById('btn-recalcular-confianca')?.addEventListener('click', () => this.recalcularConfiancaTodos());
-        // Modal: Cancelar
         document.getElementById('btn-modal-cancelar')?.addEventListener('click', () => this.fecharModalJogo());
-        // Modal: Salvar
         document.getElementById('btn-modal-salvar')?.addEventListener('click', () => this.salvarJogoDoModal());
-        // Modal: Tipo muda → atualizar labels
         document.getElementById('mj-tipo')?.addEventListener('change', () => this.atualizarModalPorTipo());
-        // Fechar modal clicando fora
         document.getElementById('modal-jogo')?.addEventListener('click', (e) => {
             if (e.target.id === 'modal-jogo') this.fecharModalJogo();
         });
@@ -787,7 +995,6 @@ const App = {
         document.getElementById('mj-numeros').value = jogoExistente ? jogoExistente.numeros.join(', ') : '';
         document.getElementById('mj-trevos').value = jogoExistente?.trevos?.length > 0 ? jogoExistente.trevos.join(', ') : '';
         document.getElementById('mj-validacao-msg').style.display = 'none';
-        // Se editando, desabilitar tipo
         document.getElementById('mj-tipo').disabled = !!jogoExistente;
         this.atualizarModalPorTipo();
         modal.style.display = 'flex';
@@ -815,7 +1022,7 @@ const App = {
                 'mais-milionaria': 'Ex: 04, 15, 23, 28, 35, 42'
             };
             document.getElementById('mj-numeros').placeholder = placeholders[tipo] || '';
-            hint.textContent = `Separados por vírgula ou espaço. ${tipo === 'lotomania' ? 'Escolha 20 números.' : ''}`;
+            hint.textContent = `Separados por vírgula ou espaço.`;
         }
         if (trevosContainer) {
             trevosContainer.style.display = cfg.trevos ? 'block' : 'none';
@@ -860,10 +1067,10 @@ const App = {
         const numerosStr = document.getElementById('mj-numeros')?.value || '';
         const trevosStr = document.getElementById('mj-trevos')?.value || '';
         const msgEl = document.getElementById('mj-validacao-msg');
-        const numeros = numerosStr.split(/[,\s]+/).filter(n => n !== '').map(Number);
+        const numeros = numerosStr.split(/[,\s]+/).filter(n => n !== '').map(Number).filter(n => !isNaN(n));
         const cfg = this.jogosConfig[tipo];
-        const trevos = cfg.trevos && trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n !== '').map(Number) : [];
-        // Validar
+        const trevos = cfg.trevos && trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n !== '').map(Number).filter(n => !isNaN(n)) : [];
+
         const v = this.validarNumerosJogo(tipo, numeros, trevos);
         if (!v.valido) {
             if (msgEl) {
@@ -889,17 +1096,15 @@ const App = {
         const sortedTrevos = [...trevos].sort((a,b) => a - b);
 
         if (this._editandoJogoId) {
-            // Editar existente
             const idx = jogos.findIndex(j => j.id === this._editandoJogoId);
             if (idx >= 0) {
                 jogos[idx].nome = nome;
                 jogos[idx].numeros = sortedNums;
                 jogos[idx].trevos = sortedTrevos;
                 jogos[idx].atualizado_em = new Date().toISOString();
-                jogos[idx].confianca = null; // Será recalculado
+                jogos[idx].confianca = null;
             }
         } else {
-            // Novo jogo
             jogos.push({
                 id: this.gerarId(),
                 jogo_slug: tipo,
@@ -917,8 +1122,9 @@ const App = {
         this.renderMeusJogos();
         this.showNotification(`Jogo "${nome}" salvo com sucesso!`, 'success');
 
-        // Tentar calcular confiança em background
-        this.recalcularConfiancaJogo(jogos[jogos.length - 1]?.id || this._editandoJogoId);
+        // Calcular confiança em background
+        const jogoId = this._editandoJogoId || jogos[jogos.length - 1]?.id;
+        if (jogoId) this.recalcularConfiancaJogo(jogoId);
     },
 
     adicionarJogoAoStorage(jogo_slug, nome, numeros, trevos, confianca) {
@@ -1032,7 +1238,6 @@ const App = {
             return;
         }
 
-        // Agrupar por jogo_slug
         const grupos = {};
         for (const j of jogos) {
             if (!grupos[j.jogo_slug]) grupos[j.jogo_slug] = [];
@@ -1102,12 +1307,17 @@ const App = {
     showNotification(msg, type = 'info') {
         const existing = document.querySelector('.notification');
         if (existing) existing.remove();
+        const colors = { success: '#27ae60', error: '#e74c3c', info: '#00d4ff', warning: '#f39c12' };
         const div = document.createElement('div');
-        div.className = `notification notification-${type}`;
+        div.className = 'notification';
+        div.style.cssText = `position:fixed;top:20px;right:20px;padding:14px 24px;border-radius:10px;color:#fff;font-size:14px;font-weight:500;z-index:99999;opacity:0;transition:opacity 0.3s;background:${colors[type] || colors.info};box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:400px;`;
         div.textContent = msg;
         document.body.appendChild(div);
-        setTimeout(() => div.classList.add('show'), 10);
-        setTimeout(() => { div.classList.remove('show'); setTimeout(() => div.remove(), 300); }, 4000);
+        setTimeout(() => { div.style.opacity = '1'; }, 10);
+        setTimeout(() => {
+            div.style.opacity = '0';
+            setTimeout(() => div.remove(), 300);
+        }, 4000);
     }
 };
 
