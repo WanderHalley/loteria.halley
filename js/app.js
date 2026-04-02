@@ -209,7 +209,7 @@ const App = {
         const container = document.getElementById('analise-content');
         if (!container) return;
         try {
-            container.innerHTML = '<p style="color:#888;text-align:center;">Executando análise com 6 modelos de IA...</p>';
+            container.innerHTML = '<p style="color:#888;text-align:center;">Executando análise com 8 modelos de IA...</p>';
             const data = await this.apiRequest(`/api/analises/completa?jogo_slug=${this.currentGame}`);
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
