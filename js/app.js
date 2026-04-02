@@ -19,11 +19,11 @@ const App = {
         apiKey: localStorage.getItem('lotoquant_api_key') || ''
     },
     jogosConfig: {
-        'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  apiNome: 'megasena',       trevos: false },
-        'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, apiNome: 'lotofacil',      trevos: false },
-        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, apiNome: 'lotomania',      trevos: false },
-        'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2 }
-    },
+    'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  escolhaMin: 6,  escolhaMax: 6,  apiNome: 'megasena',       trevos: false },
+    'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, escolhaMin: 15, escolhaMax: 20, apiNome: 'lotofacil',      trevos: false },
+    'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 20, escolhaMin: 1,  escolhaMax: 50, apiNome: 'lotomania',      trevos: false },
+    'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  escolhaMin: 6,  escolhaMax: 6,  apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2 }
+},
 
     // Armazena último resultado de previsões/validação/fechamento para "Salvar Jogo"
     _lastPrevisoes: [],
@@ -1030,36 +1030,79 @@ const App = {
     },
 
     validarNumerosJogo(tipo, numeros, trevos) {
-        const cfg = this.jogosConfig[tipo];
-        if (!cfg) return { valido: false, msg: 'Tipo de jogo inválido' };
-        if (numeros.length !== cfg.escolha) {
-            return { valido: false, msg: `Insira exatamente ${cfg.escolha} números. Você colocou ${numeros.length}.` };
+    const cfg = this.jogosConfig[tipo];
+    if (!cfg) return { valido: false, msg: 'Tipo de jogo inválido' };
+    
+    // Usar faixa de escolha (min/max) em vez de valor fixo
+    const minEscolha = cfg.escolhaMin || cfg.escolha;
+    const maxEscolha = cfg.escolhaMax || cfg.escolha;
+    
+    if (numeros.length < minEscolha || numeros.length > maxEscolha) {
+        if (minEscolha === maxEscolha) {
+            return { valido: false, msg: `Insira exatamente ${minEscolha} números. Você colocou ${numeros.length}.` };
+        } else {
+            return { valido: false, msg: `Insira de ${minEscolha} a ${maxEscolha} números. Você colocou ${numeros.length}.` };
         }
-        for (const n of numeros) {
-            if (isNaN(n) || n < cfg.min || n > cfg.max) {
-                return { valido: false, msg: `Número ${n} fora da faixa (${cfg.min}-${cfg.max}).` };
+    }
+    for (const n of numeros) {
+        if (isNaN(n) || n < cfg.min || n > cfg.max) {
+            return { valido: false, msg: `Número ${n} fora da faixa (${cfg.min}-${cfg.max}).` };
+        }
+    }
+    const unicos = new Set(numeros);
+    if (unicos.size !== numeros.length) {
+        return { valido: false, msg: 'Há números repetidos.' };
+    }
+    if (cfg.trevos) {
+        if (!trevos || trevos.length !== cfg.trevosEscolha) {
+            return { valido: false, msg: `Insira exatamente ${cfg.trevosEscolha} trevos.` };
+        }
+        for (const t of trevos) {
+            if (isNaN(t) || t < cfg.trevosMin || t > cfg.trevosMax) {
+                return { valido: false, msg: `Trevo ${t} fora da faixa (${cfg.trevosMin}-${cfg.trevosMax}).` };
             }
         }
-        const unicos = new Set(numeros);
-        if (unicos.size !== numeros.length) {
-            return { valido: false, msg: 'Há números repetidos.' };
+        const unicosTrevos = new Set(trevos);
+        if (unicosTrevos.size !== trevos.length) {
+            return { valido: false, msg: 'Há trevos repetidos.' };
         }
-        if (cfg.trevos) {
-            if (!trevos || trevos.length !== cfg.trevosEscolha) {
-                return { valido: false, msg: `Insira exatamente ${cfg.trevosEscolha} trevos.` };
-            }
-            for (const t of trevos) {
-                if (isNaN(t) || t < cfg.trevosMin || t > cfg.trevosMax) {
-                    return { valido: false, msg: `Trevo ${t} fora da faixa (${cfg.trevosMin}-${cfg.trevosMax}).` };
-                }
-            }
-            const unicosTrevos = new Set(trevos);
-            if (unicosTrevos.size !== trevos.length) {
-                return { valido: false, msg: 'Há trevos repetidos.' };
-            }
+    }
+    return { valido: true, msg: '' };
+},
+Copy
+3) Na função atualizarModalPorTipo, atualize o label:
+
+CopyatualizarModalPorTipo() {
+    const tipo = document.getElementById('mj-tipo')?.value || 'mega-sena';
+    const cfg = this.jogosConfig[tipo];
+    const label = document.getElementById('mj-numeros-label');
+    const hint = document.getElementById('mj-numeros-hint');
+    const trevosContainer = document.getElementById('mj-trevos-container');
+    
+    const minEsc = cfg.escolhaMin || cfg.escolha;
+    const maxEsc = cfg.escolhaMax || cfg.escolha;
+    
+    if (label) {
+        if (minEsc === maxEsc) {
+            label.textContent = `Números (${minEsc} números de ${String(cfg.min).padStart(2,'0')} a ${String(cfg.max).padStart(2,'0')})`;
+        } else {
+            label.textContent = `Números (${minEsc} a ${maxEsc} números de ${String(cfg.min).padStart(2,'0')} a ${String(cfg.max).padStart(2,'0')})`;
         }
-        return { valido: true, msg: '' };
-    },
+    }
+    if (hint) {
+        const placeholders = {
+            'mega-sena': 'Ex: 04, 15, 23, 38, 45, 52',
+            'lotofacil': 'Ex: 01, 02, 03, 05, 07, 08, 10, 11, 13, 14, 17, 18, 20, 22, 25',
+            'lotomania': 'Ex: 00, 05, 12, 18, 23, 31, 37, 42, 49, 55, 61, 67, 73, 78, 84, 88, 90, 93, 96, 99',
+            'mais-milionaria': 'Ex: 04, 15, 23, 28, 35, 42'
+        };
+        document.getElementById('mj-numeros').placeholder = placeholders[tipo] || '';
+        hint.textContent = `Separados por vírgula ou espaço.`;
+    }
+    if (trevosContainer) {
+        trevosContainer.style.display = cfg.trevos ? 'block' : 'none';
+    }
+},
 
     salvarJogoDoModal() {
         const tipo = document.getElementById('mj-tipo')?.value || 'mega-sena';
