@@ -1,5 +1,5 @@
 // ============================================================
-// js/app.js - LotoQuant Frontend v2.2 (+ Meus Jogos)
+// js/app.js - LotoQuant Frontend v2.3 (+ Meus Jogos + Lotomania 50)
 // ============================================================
 const App = {
     currentPage: 'dashboard',
@@ -9,20 +9,15 @@ const App = {
         apiKey: localStorage.getItem('lotoquant_api_key') || ''
     },
     jogosConfig: {
-        'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  apiNome: 'megasena',       trevos: false },
-        'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, apiNome: 'lotofacil',      trevos: false },
-        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, apiNome: 'lotomania',      trevos: false },
-        'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2 }
+        'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  escolhaMin: 6,  escolhaMax: 6,  apiNome: 'megasena',       trevos: false },
+        'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, escolhaMin: 15, escolhaMax: 20, apiNome: 'lotofacil',      trevos: false },
+        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, escolhaMin: 1,  escolhaMax: 50, apiNome: 'lotomania',      trevos: false },
+        'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  escolhaMin: 6,  escolhaMax: 12, apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2 }
     },
-
-    // Armazena último resultado de previsões/validação/fechamento para "Salvar Jogo"
     _lastPrevisoes: [],
     _lastValidacao: null,
     _lastFechamento: [],
 
-    // ========================================
-    // HELPER: Parse arrays que vem como string
-    // ========================================
     parseArray(val) {
         if (!val) return [];
         if (Array.isArray(val)) return val;
@@ -32,24 +27,13 @@ const App = {
         return [];
     },
 
-    // ========================================
-    // MEUS JOGOS: Storage
-    // ========================================
     getMeusJogos() {
-        try {
-            return JSON.parse(localStorage.getItem('lotoquant_meus_jogos') || '[]');
-        } catch(e) { return []; }
+        try { return JSON.parse(localStorage.getItem('lotoquant_meus_jogos') || '[]'); }
+        catch(e) { return []; }
     },
-    salvarMeusJogos(jogos) {
-        localStorage.setItem('lotoquant_meus_jogos', JSON.stringify(jogos));
-    },
-    gerarId() {
-        return 'jogo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-    },
+    salvarMeusJogos(jogos) { localStorage.setItem('lotoquant_meus_jogos', JSON.stringify(jogos)); },
+    gerarId() { return 'jogo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6); },
 
-    // ========================================
-    // INIT
-    // ========================================
     init() {
         this.setupNavigation();
         this.setupGameSelector();
@@ -57,14 +41,9 @@ const App = {
         this.setupConfig();
         this.setupMeusJogos();
         this.showPage('dashboard');
-        if (this.config.backendUrl) {
-            this.loadDashboard();
-        }
+        if (this.config.backendUrl) { this.loadDashboard(); }
     },
 
-    // ========================================
-    // NAVIGATION
-    // ========================================
     setupNavigation() {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -73,20 +52,16 @@ const App = {
             });
         });
     },
+
     showPage(page) {
         this.currentPage = page;
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
         document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
         document.getElementById(`page-${page}`)?.classList.add('active');
-        if (page === 'meus-jogos') {
-            this.renderMeusJogos();
-        }
+        if (page === 'meus-jogos') { this.renderMeusJogos(); }
     },
 
-    // ========================================
-    // GAME SELECTOR
-    // ========================================
     setupGameSelector() {
         const selector = document.getElementById('game-selector');
         if (selector) {
@@ -97,9 +72,6 @@ const App = {
         }
     },
 
-    // ========================================
-    // CONFIG
-    // ========================================
     setupConfig() {
         const urlInput = document.getElementById('config-backend-url');
         const keyInput = document.getElementById('config-api-key');
@@ -124,9 +96,6 @@ const App = {
         }
     },
 
-    // ========================================
-    // BUTTONS
-    // ========================================
     setupButtons() {
         document.getElementById('btn-analise')?.addEventListener('click', () => this.executarAnalise());
         document.getElementById('btn-previsoes')?.addEventListener('click', () => this.gerarPrevisoes());
@@ -140,9 +109,6 @@ const App = {
         document.getElementById('btn-atualizar')?.addEventListener('click', () => this.forcarAtualizacao());
     },
 
-    // ========================================
-    // API REQUEST
-    // ========================================
     async apiRequest(endpoint, options = {}) {
         if (!this.config.backendUrl) {
             this.showNotification('Configure a URL do backend primeiro!', 'error');
@@ -159,9 +125,6 @@ const App = {
         return resp.json();
     },
 
-    // ========================================
-    // DASHBOARD
-    // ========================================
     async loadDashboard() {
         const container = document.getElementById('dashboard-content');
         if (!container) return;
@@ -202,9 +165,6 @@ const App = {
         }
     },
 
-    // ========================================
-    // ANÁLISE IA
-    // ========================================
     async executarAnalise() {
         const container = document.getElementById('analise-content');
         if (!container) return;
@@ -221,7 +181,7 @@ const App = {
                     <p style="color:#888;font-size:13px;">Último Concurso</p>
                 </div>
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
-                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.modelos_usados?.length || 6}</p>
+                    <p style="font-size:28px;font-weight:bold;color:#feca57;">${data.modelos_usados?.length || 8}</p>
                     <p style="color:#888;font-size:13px;">Modelos de IA</p>
                 </div>
             </div>
@@ -262,15 +222,12 @@ const App = {
         }
     },
 
-    // ========================================
-    // PREVISÕES (com botão Salvar Jogo)
-    // ========================================
     async gerarPrevisoes() {
         const container = document.getElementById('previsoes-content');
         if (!container) return;
         const qtd = parseInt(document.getElementById('qtd-previsoes')?.value || '5');
         try {
-            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando previsões com ensemble de 6 modelos...</p>';
+            container.innerHTML = '<p style="color:#888;text-align:center;">Gerando previsões com ensemble de 8 modelos...</p>';
             const data = await this.apiRequest('/api/previsoes/gerar', {
                 method: 'POST',
                 body: JSON.stringify({ jogo_slug: this.currentGame, quantidade_jogos: qtd })
@@ -282,7 +239,6 @@ const App = {
                 score: p.score || 0,
                 jogo_slug: this.currentGame
             }));
-
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
                     <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_concursos_analisados}</p>
@@ -322,9 +278,6 @@ const App = {
         this.adicionarJogoAoStorage(p.jogo_slug, nome, p.numeros, p.trevos, p.confianca);
     },
 
-    // ========================================
-    // VALIDAÇÃO (com botão Salvar Jogo)
-    // ========================================
     async validarJogo() {
         const container = document.getElementById('validacao-content');
         if (!container) return;
@@ -342,13 +295,7 @@ const App = {
                 method: 'POST',
                 body: JSON.stringify({ jogo_slug: this.currentGame, numeros, trevos })
             });
-            this._lastValidacao = {
-                numeros: numeros,
-                trevos: trevos,
-                confianca: data.confianca || 0,
-                jogo_slug: this.currentGame
-            };
-
+            this._lastValidacao = { numeros, trevos, confianca: data.confianca || 0, jogo_slug: this.currentGame };
             const confCor = data.confianca > 70 ? '#27ae60' : data.confianca > 50 ? '#f39c12' : '#e74c3c';
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:2px solid ${confCor};">
@@ -391,9 +338,7 @@ const App = {
             }
             if (data.recomendacoes?.length > 0) {
                 html += '<h3 style="color:#e0e0e0;margin-bottom:12px;">Recomendações</h3><div style="margin-bottom:24px;">';
-                for (const r of data.recomendacoes) {
-                    html += `<p style="color:#e0e0e0;padding:6px 0;">• ${r}</p>`;
-                }
+                for (const r of data.recomendacoes) { html += `<p style="color:#e0e0e0;padding:6px 0;">• ${r}</p>`; }
                 html += '</div>';
             }
             container.innerHTML = html;
@@ -410,9 +355,6 @@ const App = {
         this.adicionarJogoAoStorage(v.jogo_slug, nome, v.numeros, v.trevos, v.confianca);
     },
 
-    // ========================================
-    // FECHAMENTO (com botão Salvar Jogo)
-    // ========================================
     async gerarFechamento() {
         const container = document.getElementById('fechamento-content');
         if (!container) return;
@@ -427,7 +369,6 @@ const App = {
                 confianca: j.score || 0,
                 jogo_slug: this.currentGame
             }));
-
             let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
                 <div style="background:#1a1a2e;padding:20px;border-radius:12px;text-align:center;border:1px solid #333;">
                     <p style="font-size:28px;font-weight:bold;color:#00d4ff;">${data.total_jogos}</p>
@@ -473,9 +414,6 @@ const App = {
         this.adicionarJogoAoStorage(j.jogo_slug, nome, j.numeros, j.trevos, j.confianca);
     },
 
-    // ========================================
-    // BACKTESTING
-    // ========================================
     async executarBacktest() {
         const container = document.getElementById('backtest-content');
         if (!container) return;
@@ -536,9 +474,6 @@ const App = {
         }
     },
 
-    // ========================================
-    // ALERTAS
-    // ========================================
     async verificarAlertas() {
         const container = document.getElementById('alertas-content');
         if (!container) return;
@@ -567,9 +502,6 @@ const App = {
         }
     },
 
-    // ========================================
-    // INSERIR RESULTADO MANUAL
-    // ========================================
     async inserirResultado() {
         const concurso   = parseInt(document.getElementById('inserir-concurso')?.value);
         const data       = document.getElementById('inserir-data')?.value;
@@ -595,9 +527,6 @@ const App = {
         }
     },
 
-    // ========================================
-    // IMPORTAR JOGO INDIVIDUAL
-    // ========================================
     async importarJogoIndividual() {
         const jogo = document.getElementById('import-jogo-select')?.value || this.currentGame;
         const desdeAno = parseInt(document.getElementById('import-desde')?.value || '2022');
@@ -605,9 +534,6 @@ const App = {
         this.loadDashboard();
     },
 
-    // ========================================
-    // IMPORTAR HISTÓRICO VIA PROXY
-    // ========================================
     async importarHistoricoProxy() {
         const btn = document.getElementById('btn-importar-todos');
         const statusEl = document.getElementById('import-status');
@@ -634,11 +560,11 @@ const App = {
     async importarUmJogo(jogo, desdeAno, statusEl, prevHtml = '') {
         const apiNomes = { 'mega-sena':'megasena','lotofacil':'lotofacil','lotomania':'lotomania','mais-milionaria':'maismilionaria' };
         const estimativas = {
-    'mega-sena':       {1996:1, 2000:150, 2005:500, 2010:1150, 2015:1700, 2018:2000, 2019:2100, 2020:2200, 2021:2330, 2022:2460, 2023:2600, 2024:2750, 2025:2880},
-    'lotofacil':       {1996:1, 2000:1, 2003:1, 2005:200, 2010:800, 2015:1200, 2018:1600, 2019:1700, 2020:1900, 2021:2100, 2022:2400, 2023:2700, 2024:3100, 2025:3400},
-    'lotomania':       {1996:1, 1999:1, 2000:50, 2005:500, 2010:1050, 2015:1550, 2018:1800, 2019:1900, 2020:2050, 2021:2150, 2022:2300, 2023:2450, 2024:2600, 2025:2750},
-    'mais-milionaria': {1996:1, 2000:1, 2005:1, 2010:1, 2015:1, 2018:1, 2019:1, 2020:1, 2021:1, 2022:1, 2023:50, 2024:150, 2025:250}
-};
+            'mega-sena':       {1996:1, 2000:150, 2005:500, 2010:1150, 2015:1700, 2018:2000, 2019:2100, 2020:2200, 2021:2330, 2022:2460, 2023:2600, 2024:2750, 2025:2880},
+            'lotofacil':       {1996:1, 2000:1, 2003:1, 2005:200, 2010:800, 2015:1200, 2018:1600, 2019:1700, 2020:1900, 2021:2100, 2022:2400, 2023:2700, 2024:3100, 2025:3400},
+            'lotomania':       {1996:1, 1999:1, 2000:50, 2005:500, 2010:1050, 2015:1550, 2018:1800, 2019:1900, 2020:2050, 2021:2150, 2022:2300, 2023:2450, 2024:2600, 2025:2750},
+            'mais-milionaria': {1996:1, 2000:1, 2005:1, 2010:1, 2015:1, 2018:1, 2019:1, 2020:1, 2021:1, 2022:1, 2023:50, 2024:150, 2025:250}
+        };
         const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
         const apiNome = apiNomes[jogo];
         let resultadoHtml = prevHtml;
@@ -654,12 +580,15 @@ const App = {
             const dataUltimo = await respUltimo.json();
             const ultimoCaixa = dataUltimo.numero;
             let ultimoDB = 0;
-            try { const respDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`); ultimoDB = respDB.ultimo?.concurso || 0; } catch(e) { ultimoDB = 0; }
+            try {
+                const respDB = await this.apiRequest(`/api/resultados/?jogo_slug=${jogo}&limit=1`);
+                ultimoDB = respDB.resultados?.[0]?.concurso || 0;
+            } catch(e) { ultimoDB = 0; }
             const estJogo = estimativas[jogo] || {};
             const desdeConc = estJogo[desdeAno] || 1;
             const inicio = Math.max(desdeConc, ultimoDB + 1);
             if (inicio > ultimoCaixa) {
-                resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: já atualizado (concurso ${ultimoDB})</p>`;
+                resultadoHtml += `<p style="color:#27ae60;">✅ ${jogo}: já atualizado (${ultimoDB} concursos)</p>`;
                 updateStatus(resultadoHtml);
                 return { html: resultadoHtml, inseridos: 0 };
             }
@@ -704,9 +633,6 @@ const App = {
         return { html: resultadoHtml, inseridos };
     },
 
-    // ========================================
-    // FORÇAR ATUALIZAÇÃO (via proxy)
-    // ========================================
     async forcarAtualizacao() {
         const btn = document.getElementById('btn-atualizar');
         const statusEl = document.getElementById('update-status');
@@ -716,7 +642,6 @@ const App = {
         await this.atualizarViaProxy(statusEl);
         btn.disabled = false;
         btn.textContent = 'Forçar Atualização';
-        // Recalcular confiança dos jogos salvos após atualizar
         this.recalcularConfiancaTodos();
         this.loadDashboard();
     },
@@ -732,7 +657,10 @@ const App = {
                 const d = await resp.json();
                 const concurso = d.numero;
                 let ultimoDB = 0;
-                try { const rDB = await this.apiRequest(`/api/resultados/ultimo?jogo_slug=${jogo}`); ultimoDB = rDB.ultimo?.concurso || 0; } catch(e){}
+                try {
+                    const rDB = await this.apiRequest(`/api/resultados/?jogo_slug=${jogo}&limit=1`);
+                    ultimoDB = rDB.resultados?.[0]?.concurso || 0;
+                } catch(e){}
                 if (concurso <= ultimoDB) {
                     html += `<p style="color:#888;">➡️ ${jogo}: já atualizado (${ultimoDB})</p>`;
                 } else {
@@ -756,20 +684,14 @@ const App = {
     },
 
     // ================================================================
-    // MEUS JOGOS — Módulo completo
+    // MEUS JOGOS
     // ================================================================
     setupMeusJogos() {
-        // Botão Adicionar
         document.getElementById('btn-adicionar-jogo')?.addEventListener('click', () => this.abrirModalJogo());
-        // Botão Recalcular
         document.getElementById('btn-recalcular-confianca')?.addEventListener('click', () => this.recalcularConfiancaTodos());
-        // Modal: Cancelar
         document.getElementById('btn-modal-cancelar')?.addEventListener('click', () => this.fecharModalJogo());
-        // Modal: Salvar
         document.getElementById('btn-modal-salvar')?.addEventListener('click', () => this.salvarJogoDoModal());
-        // Modal: Tipo muda → atualizar labels
         document.getElementById('mj-tipo')?.addEventListener('change', () => this.atualizarModalPorTipo());
-        // Fechar modal clicando fora
         document.getElementById('modal-jogo')?.addEventListener('click', (e) => {
             if (e.target.id === 'modal-jogo') this.fecharModalJogo();
         });
@@ -787,7 +709,6 @@ const App = {
         document.getElementById('mj-numeros').value = jogoExistente ? jogoExistente.numeros.join(', ') : '';
         document.getElementById('mj-trevos').value = jogoExistente?.trevos?.length > 0 ? jogoExistente.trevos.join(', ') : '';
         document.getElementById('mj-validacao-msg').style.display = 'none';
-        // Se editando, desabilitar tipo
         document.getElementById('mj-tipo').disabled = !!jogoExistente;
         this.atualizarModalPorTipo();
         modal.style.display = 'flex';
@@ -803,19 +724,25 @@ const App = {
     atualizarModalPorTipo() {
         const tipo = document.getElementById('mj-tipo')?.value || 'mega-sena';
         const cfg = this.jogosConfig[tipo];
+        if (!cfg) return;
         const label = document.getElementById('mj-numeros-label');
         const hint = document.getElementById('mj-numeros-hint');
         const trevosContainer = document.getElementById('mj-trevos-container');
-        if (label) label.textContent = `Números (${cfg.escolha} números de ${String(cfg.min).padStart(2,'0')} a ${String(cfg.max).padStart(2,'0')})`;
+
+        const minEsc = cfg.escolhaMin || cfg.escolha;
+        const maxEsc = cfg.escolhaMax || cfg.escolha;
+        const rangeText = minEsc === maxEsc ? `${minEsc} números` : `${minEsc} a ${maxEsc} números`;
+
+        if (label) label.textContent = `Números (${rangeText} de ${String(cfg.min).padStart(2,'0')} a ${String(cfg.max).padStart(2,'0')})`;
         if (hint) {
             const placeholders = {
                 'mega-sena': 'Ex: 04, 15, 23, 38, 45, 52',
                 'lotofacil': 'Ex: 01, 02, 03, 05, 07, 08, 10, 11, 13, 14, 17, 18, 20, 22, 25',
-                'lotomania': 'Ex: 00, 05, 12, 18, 23, 31, 37, 42, 49, 55, 61, 67, 73, 78, 84, 88, 90, 93, 96, 99',
+                'lotomania': 'Ex: 00, 05, 12, 18, 23, 31, 37, 42, 49, 55, 61, 67, 73, 78, 84, 88, 90, 93, 96, 99 (até 50 números)',
                 'mais-milionaria': 'Ex: 04, 15, 23, 28, 35, 42'
             };
             document.getElementById('mj-numeros').placeholder = placeholders[tipo] || '';
-            hint.textContent = `Separados por vírgula ou espaço. ${tipo === 'lotomania' ? 'Escolha 20 números.' : ''}`;
+            hint.textContent = `Separados por vírgula ou espaço. ${tipo === 'lotomania' ? 'Escolha de 1 a 50 números.' : ''}`;
         }
         if (trevosContainer) {
             trevosContainer.style.display = cfg.trevos ? 'block' : 'none';
@@ -825,8 +752,13 @@ const App = {
     validarNumerosJogo(tipo, numeros, trevos) {
         const cfg = this.jogosConfig[tipo];
         if (!cfg) return { valido: false, msg: 'Tipo de jogo inválido' };
-        if (numeros.length !== cfg.escolha) {
-            return { valido: false, msg: `Insira exatamente ${cfg.escolha} números. Você colocou ${numeros.length}.` };
+
+        const minEsc = cfg.escolhaMin || cfg.escolha;
+        const maxEsc = cfg.escolhaMax || cfg.escolha;
+
+        if (numeros.length < minEsc || numeros.length > maxEsc) {
+            const rangeText = minEsc === maxEsc ? `exatamente ${minEsc}` : `de ${minEsc} a ${maxEsc}`;
+            return { valido: false, msg: `Insira ${rangeText} números. Você colocou ${numeros.length}.` };
         }
         for (const n of numeros) {
             if (isNaN(n) || n < cfg.min || n > cfg.max) {
@@ -863,43 +795,28 @@ const App = {
         const numeros = numerosStr.split(/[,\s]+/).filter(n => n !== '').map(Number);
         const cfg = this.jogosConfig[tipo];
         const trevos = cfg.trevos && trevosStr ? trevosStr.split(/[,\s]+/).filter(n => n !== '').map(Number) : [];
-        // Validar
         const v = this.validarNumerosJogo(tipo, numeros, trevos);
         if (!v.valido) {
-            if (msgEl) {
-                msgEl.style.display = 'block';
-                msgEl.style.background = '#3d1515';
-                msgEl.style.color = '#e74c3c';
-                msgEl.textContent = '❌ ' + v.msg;
-            }
+            if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#3d1515'; msgEl.style.color = '#e74c3c'; msgEl.textContent = '❌ ' + v.msg; }
             return;
         }
         if (!nome) {
-            if (msgEl) {
-                msgEl.style.display = 'block';
-                msgEl.style.background = '#3d1515';
-                msgEl.style.color = '#e74c3c';
-                msgEl.textContent = '❌ Dê um nome ao seu jogo.';
-            }
+            if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#3d1515'; msgEl.style.color = '#e74c3c'; msgEl.textContent = '❌ Dê um nome ao seu jogo.'; }
             return;
         }
-
         const jogos = this.getMeusJogos();
         const sortedNums = [...numeros].sort((a,b) => a - b);
         const sortedTrevos = [...trevos].sort((a,b) => a - b);
-
         if (this._editandoJogoId) {
-            // Editar existente
             const idx = jogos.findIndex(j => j.id === this._editandoJogoId);
             if (idx >= 0) {
                 jogos[idx].nome = nome;
                 jogos[idx].numeros = sortedNums;
                 jogos[idx].trevos = sortedTrevos;
                 jogos[idx].atualizado_em = new Date().toISOString();
-                jogos[idx].confianca = null; // Será recalculado
+                jogos[idx].confianca = null;
             }
         } else {
-            // Novo jogo
             jogos.push({
                 id: this.gerarId(),
                 jogo_slug: tipo,
@@ -911,13 +828,10 @@ const App = {
                 atualizado_em: new Date().toISOString()
             });
         }
-
         this.salvarMeusJogos(jogos);
         this.fecharModalJogo();
         this.renderMeusJogos();
         this.showNotification(`Jogo "${nome}" salvo com sucesso!`, 'success');
-
-        // Tentar calcular confiança em background
         this.recalcularConfiancaJogo(jogos[jogos.length - 1]?.id || this._editandoJogoId);
     },
 
@@ -937,9 +851,7 @@ const App = {
         });
         this.salvarMeusJogos(jogos);
         this.showNotification(`Jogo "${nome}" salvo em Meus Jogos!`, 'success');
-        if (this.currentPage === 'meus-jogos') {
-            this.renderMeusJogos();
-        }
+        if (this.currentPage === 'meus-jogos') { this.renderMeusJogos(); }
     },
 
     excluirJogo(id) {
@@ -965,11 +877,7 @@ const App = {
         try {
             const data = await this.apiRequest('/api/validacao/validar-jogo', {
                 method: 'POST',
-                body: JSON.stringify({
-                    jogo_slug: jogo.jogo_slug,
-                    numeros: jogo.numeros,
-                    trevos: jogo.trevos || []
-                })
+                body: JSON.stringify({ jogo_slug: jogo.jogo_slug, numeros: jogo.numeros, trevos: jogo.trevos || [] })
             });
             jogo.confianca = data.confianca || 0;
             jogo.atualizado_em = new Date().toISOString();
@@ -997,11 +905,7 @@ const App = {
             try {
                 const data = await this.apiRequest('/api/validacao/validar-jogo', {
                     method: 'POST',
-                    body: JSON.stringify({
-                        jogo_slug: jogo.jogo_slug,
-                        numeros: jogo.numeros,
-                        trevos: jogo.trevos || []
-                    })
+                    body: JSON.stringify({ jogo_slug: jogo.jogo_slug, numeros: jogo.numeros, trevos: jogo.trevos || [] })
                 });
                 jogo.confianca = data.confianca || 0;
                 jogo.atualizado_em = new Date().toISOString();
@@ -1022,7 +926,6 @@ const App = {
         if (!container) return;
         const jogos = this.getMeusJogos();
         if (totalEl) totalEl.textContent = `${jogos.length} jogo${jogos.length !== 1 ? 's' : ''} salvo${jogos.length !== 1 ? 's' : ''}`;
-
         if (jogos.length === 0) {
             container.innerHTML = `<div style="text-align:center;padding:60px 20px;color:#666;">
                 <p style="font-size:48px;margin-bottom:16px;">🎫</p>
@@ -1031,31 +934,24 @@ const App = {
             </div>`;
             return;
         }
-
-        // Agrupar por jogo_slug
         const grupos = {};
         for (const j of jogos) {
             if (!grupos[j.jogo_slug]) grupos[j.jogo_slug] = [];
             grupos[j.jogo_slug].push(j);
         }
-
         let html = '';
         const icones = { 'mega-sena':'🎯', 'lotofacil':'🍀', 'lotomania':'🔮', 'mais-milionaria':'💎' };
         const cores = { 'mega-sena':'#27ae60', 'lotofacil':'#9b59b6', 'lotomania':'#e67e22', 'mais-milionaria':'#00d4ff' };
-
         for (const [slug, lista] of Object.entries(grupos)) {
             const cfg = this.jogosConfig[slug];
             const icon = icones[slug] || '🎫';
             const cor = cores[slug] || '#00d4ff';
-
             html += `<div style="margin-bottom:8px;">
                 <h3 style="color:${cor};margin-bottom:12px;">${icon} ${cfg?.nome || slug} (${lista.length})</h3>
             </div>`;
-
             for (const jogo of lista) {
                 const nums = jogo.numeros.map(n => `<span style="background:${cor};color:#0d0d1a;padding:3px 8px;border-radius:50%;font-weight:bold;font-size:13px;margin:1px;display:inline-block;">${String(n).padStart(2,'0')}</span>`).join(' ');
                 const trevosHtml = jogo.trevos?.length > 0 ? ' + ' + jogo.trevos.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:3px 8px;border-radius:50%;font-weight:bold;font-size:13px;margin:1px;display:inline-block;">${t}</span>`).join(' ') : '';
-
                 let confHtml = '';
                 if (jogo.confianca !== null && jogo.confianca !== undefined) {
                     const confCor = jogo.confianca > 70 ? '#27ae60' : jogo.confianca > 50 ? '#f39c12' : '#e74c3c';
@@ -1073,9 +969,7 @@ const App = {
                         <span style="color:#666;font-size:10px;">Não calculado</span>
                     </div>`;
                 }
-
                 const dataFormatada = jogo.atualizado_em ? new Date(jogo.atualizado_em).toLocaleDateString('pt-BR') : '';
-
                 html += `<div style="background:#1a1a2e;border-radius:12px;padding:16px;border:1px solid #333;display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
                     <div style="flex:1;min-width:200px;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
@@ -1092,13 +986,9 @@ const App = {
                 </div>`;
             }
         }
-
         container.innerHTML = html;
     },
 
-    // ========================================
-    // NOTIFICATION
-    // ========================================
     showNotification(msg, type = 'info') {
         const existing = document.querySelector('.notification');
         if (existing) existing.remove();
