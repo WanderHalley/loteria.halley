@@ -21,7 +21,7 @@ const App = {
     jogosConfig: {
         'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  apiNome: 'megasena',       trevos: false },
         'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, apiNome: 'lotofacil',      trevos: false },
-        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 20, apiNome: 'lotomania',      trevos: false },
+        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, apiNome: 'lotomania',      trevos: false },
         'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2 }
     },
 
