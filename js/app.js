@@ -1,5 +1,5 @@
 // ============================================================
-// js/app.js - LotoQuant Frontend v2.4 (Regras Oficiais Corrigidas)
+// js/app.js - LotoQuant Frontend v2.5 (10 Jogos + Menu Fix)
 // ============================================================
 const App = {
     currentPage: 'dashboard',
@@ -9,14 +9,16 @@ const App = {
         apiKey: localStorage.getItem('lotoquant_api_key') || ''
     },
     jogosConfig: {
-        // Mega-Sena: escolhe 6 números de 01 a 60
-        'mega-sena':      { nome: 'Mega-Sena',    min: 1,  max: 60, escolha: 6,  escolhaMin: 6,  escolhaMax: 6,  apiNome: 'megasena',       trevos: false },
-        // Lotofácil: marca entre 15 e 20 números de 01 a 25
-        'lotofacil':      { nome: 'Lotofácil',     min: 1,  max: 25, escolha: 15, escolhaMin: 15, escolhaMax: 20, apiNome: 'lotofacil',      trevos: false },
-        // Lotomania: escolhe 50 números de 00 a 99
-        'lotomania':      { nome: 'Lotomania',     min: 0,  max: 99, escolha: 50, escolhaMin: 50, escolhaMax: 50, apiNome: 'lotomania',      trevos: false },
-        // +Milionária: 6-12 números de 01-50 + 2-6 trevos de 1-6
-        'mais-milionaria':{ nome: '+Milionária',   min: 1,  max: 50, escolha: 6,  escolhaMin: 6,  escolhaMax: 12, apiNome: 'maismilionaria', trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2, trevosEscolhaMin:2, trevosEscolhaMax:6 }
+        'mega-sena':      { nome: 'Mega-Sena',      min: 1,  max: 60,  escolha: 6,  escolhaMin: 6,  escolhaMax: 6,   apiNome: 'megasena',        trevos: false },
+        'lotofacil':      { nome: 'Lotofácil',       min: 1,  max: 25,  escolha: 15, escolhaMin: 15, escolhaMax: 20,  apiNome: 'lotofacil',       trevos: false },
+        'lotomania':      { nome: 'Lotomania',       min: 0,  max: 99,  escolha: 50, escolhaMin: 50, escolhaMax: 50,  apiNome: 'lotomania',       trevos: false },
+        'mais-milionaria':{ nome: '+Milionária',     min: 1,  max: 50,  escolha: 6,  escolhaMin: 6,  escolhaMax: 12,  apiNome: 'maismilionaria',  trevos: true, trevosMin:1, trevosMax:6, trevosEscolha:2, trevosEscolhaMin:2, trevosEscolhaMax:6 },
+        'quina':          { nome: 'Quina',           min: 1,  max: 80,  escolha: 5,  escolhaMin: 5,  escolhaMax: 15,  apiNome: 'quina',           trevos: false },
+        'dia-de-sorte':   { nome: 'Dia de Sorte',    min: 1,  max: 31,  escolha: 7,  escolhaMin: 7,  escolhaMax: 15,  apiNome: 'diadesorte',      trevos: false },
+        'super-sete':     { nome: 'Super Sete',      min: 0,  max: 9,   escolha: 7,  escolhaMin: 7,  escolhaMax: 21,  apiNome: 'supersete',       trevos: false },
+        'timemania':      { nome: 'Timemania',       min: 1,  max: 80,  escolha: 10, escolhaMin: 10, escolhaMax: 10,  apiNome: 'timemania',       trevos: false },
+        'dupla-sena':     { nome: 'Dupla Sena',      min: 1,  max: 50,  escolha: 6,  escolhaMin: 6,  escolhaMax: 15,  apiNome: 'duplasena',       trevos: false },
+        'loteca':         { nome: 'Loteca',          min: 1,  max: 3,   escolha: 14, escolhaMin: 14, escolhaMax: 14,  apiNome: 'loteca',          trevos: false }
     },
     _lastPrevisoes: [],
     _lastValidacao: null,
@@ -191,12 +193,17 @@ const App = {
                 </div>
             </div>`;
 
-            // Info das regras do jogo atual
             const regrasInfo = {
-                'mega-sena': 'Escolha 6 números de 01 a 60. Prêmio com 6, 5 ou 4 acertos.',
-                'lotofacil': 'Marque 15 a 20 números de 01 a 25. Prêmio com 11 a 15 acertos.',
-                'lotomania': 'Escolha 50 números de 00 a 99. Prêmio com 20, 19, 18, 17, 16, 15 ou 0 acertos.',
-                'mais-milionaria': 'Escolha 6-12 números de 01 a 50 + 2-6 trevos de 1 a 6. 10 faixas de premiação.'
+                'mega-sena':       'Escolha 6 números de 01 a 60. Prêmio com 6, 5 ou 4 acertos.',
+                'lotofacil':       'Marque 15 a 20 números de 01 a 25. Prêmio com 11 a 15 acertos.',
+                'lotomania':       'Escolha 50 números de 00 a 99. Prêmio com 20, 19, 18, 17, 16, 15 ou 0 acertos.',
+                'mais-milionaria': 'Escolha 6-12 números de 01 a 50 + 2-6 trevos de 1 a 6. 10 faixas de premiação.',
+                'quina':           'Escolha 5 a 15 números de 01 a 80. Prêmio com 5, 4, 3 ou 2 acertos.',
+                'dia-de-sorte':    'Escolha 7 a 15 números de 01 a 31 + Mês da Sorte. Prêmio com 7, 6, 5 ou 4 acertos.',
+                'super-sete':      'Escolha 1 a 3 números por coluna (7 colunas, 0-9). Prêmio com 3 a 7 colunas certas.',
+                'timemania':       'Escolha 10 números de 01 a 80 + Time do Coração. Prêmio com 7, 6, 5 ou 3 acertos.',
+                'dupla-sena':      'Escolha 6 a 15 números de 01 a 50. Dois sorteios por concurso.',
+                'loteca':          'Prognostique 14 jogos de futebol: Coluna 1 (mandante), Meio (empate) ou 2 (visitante).'
             };
             html += `<div style="background:#16213e;padding:12px 16px;border-radius:8px;margin-bottom:20px;border-left:4px solid #00d4ff;">
                 <p style="color:#00d4ff;font-size:13px;margin:0;">📋 ${regrasInfo[this.currentGame] || ''}</p>
@@ -264,18 +271,14 @@ const App = {
                 </div>
             </div>`;
 
-            // Verificar se a quantidade de números está correta
             html += '<div style="display:grid;gap:16px;">';
             data.previsoes?.forEach((p, i) => {
                 const numerosArr = this.parseArray(p.numeros);
                 const trevosArr = this.parseArray(p.trevos);
-
-                // Alerta se quantidade de números não bate com a regra
                 let alertaQtd = '';
                 if (numerosArr.length !== cfg.escolha) {
                     alertaQtd = `<p style="color:#f39c12;font-size:11px;margin-top:4px;">⚠️ Gerado ${numerosArr.length} números (esperado: ${cfg.escolha}). O backend precisa ser ajustado.</p>`;
                 }
-
                 const nums = numerosArr.map(n => `<span style="background:#00d4ff;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${String(n).padStart(2,'0')}</span>`).join(' ');
                 const trevos = trevosArr.length > 0 ? ' + ' + trevosArr.map(t => `<span style="background:#feca57;color:#0d0d1a;padding:4px 10px;border-radius:50%;font-weight:bold;font-size:15px;margin:2px;">${t}</span>`).join(' ') : '';
                 const confCor = p.confianca > 70 ? '#27ae60' : p.confianca > 50 ? '#f39c12' : '#e74c3c';
@@ -318,7 +321,6 @@ const App = {
             this.showNotification('Preencha os números corretamente', 'error');
             return;
         }
-        // Validar quantidade conforme regras
         const cfg = this.jogosConfig[this.currentGame];
         const minEsc = cfg.escolhaMin || cfg.escolha;
         const maxEsc = cfg.escolhaMax || cfg.escolha;
@@ -572,6 +574,7 @@ const App = {
         this.loadDashboard();
     },
 
+    // ★ CORRIGIDO: agora importa TODOS os 10 jogos
     async importarHistoricoProxy() {
         const btn = document.getElementById('btn-importar-todos');
         const statusEl = document.getElementById('import-status');
@@ -579,7 +582,7 @@ const App = {
         const desdeAno = parseInt(document.getElementById('import-desde')?.value || '2022');
         btn.disabled = true;
         btn.textContent = 'Importando...';
-        const jogos = ['mega-sena','lotofacil','lotomania','mais-milionaria'];
+        const jogos = ['mega-sena','lotofacil','lotomania','mais-milionaria','quina','dia-de-sorte','super-sete','timemania','dupla-sena','loteca'];
         let totalGeral = 0;
         let resultadoHtml = '';
         for (const jogo of jogos) {
@@ -590,21 +593,42 @@ const App = {
         resultadoHtml += `<p style="color:#00d4ff;font-weight:bold;margin-top:12px;">📊 Total importado: ${totalGeral} concursos</p>`;
         if (statusEl) statusEl.innerHTML = resultadoHtml;
         btn.disabled = false;
-        btn.textContent = 'Importar Todos os Jogos';
+        btn.textContent = '📦 Importar Todos os Jogos';
         this.showNotification(`Importação concluída! ${totalGeral} concursos importados.`, 'success');
         this.loadDashboard();
     },
 
+    // ★ CORRIGIDO: apiNomes e estimativas agora cobrem todos os 10 jogos
     async importarUmJogo(jogo, desdeAno, statusEl, prevHtml = '') {
-        const apiNomes = { 'mega-sena':'megasena','lotofacil':'lotofacil','lotomania':'lotomania','mais-milionaria':'maismilionaria' };
+        const apiNomes = {
+            'mega-sena':'megasena',
+            'lotofacil':'lotofacil',
+            'lotomania':'lotomania',
+            'mais-milionaria':'maismilionaria',
+            'quina':'quina',
+            'dia-de-sorte':'diadesorte',
+            'super-sete':'supersete',
+            'timemania':'timemania',
+            'dupla-sena':'duplasena',
+            'loteca':'loteca'
+        };
         const estimativas = {
             'mega-sena':       {1996:1, 2000:150, 2005:500, 2010:1150, 2015:1700, 2018:2000, 2019:2100, 2020:2200, 2021:2330, 2022:2460, 2023:2600, 2024:2750, 2025:2880},
             'lotofacil':       {1996:1, 2000:1, 2003:1, 2005:200, 2010:800, 2015:1200, 2018:1600, 2019:1700, 2020:1900, 2021:2100, 2022:2400, 2023:2700, 2024:3100, 2025:3400},
             'lotomania':       {1996:1, 1999:1, 2000:50, 2005:500, 2010:1050, 2015:1550, 2018:1800, 2019:1900, 2020:2050, 2021:2150, 2022:2300, 2023:2450, 2024:2600, 2025:2750},
-            'mais-milionaria': {1996:1, 2000:1, 2005:1, 2010:1, 2015:1, 2018:1, 2019:1, 2020:1, 2021:1, 2022:1, 2023:50, 2024:150, 2025:250}
+            'mais-milionaria': {1996:1, 2000:1, 2005:1, 2010:1, 2015:1, 2018:1, 2019:1, 2020:1, 2021:1, 2022:1, 2023:50, 2024:150, 2025:250},
+            'quina':           {1996:1, 2000:700, 2005:1500, 2010:2300, 2015:3700, 2018:4600, 2019:4900, 2020:5200, 2021:5500, 2022:5800, 2023:6100, 2024:6400, 2025:6600},
+            'dia-de-sorte':    {1996:1, 2000:1, 2005:1, 2010:1, 2015:1, 2018:1, 2019:100, 2020:250, 2021:400, 2022:550, 2023:700, 2024:850, 2025:1000},
+            'super-sete':      {1996:1, 2000:1, 2005:1, 2010:1, 2015:1, 2018:1, 2019:1, 2020:1, 2021:10, 2022:50, 2023:100, 2024:150, 2025:200},
+            'timemania':       {1996:1, 2000:1, 2005:1, 2008:1, 2010:300, 2015:700, 2018:1100, 2019:1300, 2020:1500, 2021:1650, 2022:1800, 2023:1950, 2024:2100, 2025:2200},
+            'dupla-sena':      {1996:1, 2000:100, 2005:500, 2010:1050, 2015:1500, 2018:1800, 2019:1950, 2020:2100, 2021:2250, 2022:2400, 2023:2500, 2024:2600, 2025:2700},
+            'loteca':          {1996:1, 2000:100, 2005:300, 2010:500, 2015:650, 2018:750, 2019:800, 2020:850, 2021:900, 2022:930, 2023:960, 2024:990, 2025:1010}
         };
         const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
         const apiNome = apiNomes[jogo];
+        if (!apiNome) {
+            return { html: prevHtml + `<p style="color:#f39c12;">⚠️ ${jogo}: API name não mapeada</p>`, inseridos: 0 };
+        }
         let resultadoHtml = prevHtml;
         let inseridos = 0;
         const updateStatus = (msg) => { if (statusEl) statusEl.innerHTML = msg; };
@@ -642,7 +666,7 @@ const App = {
                     batch.push({
                         concurso: d.numero || num,
                         data_sorteio: d.dataApuracao || '',
-                        numeros: (d.listaDezenas || []).map(n => parseInt(n,10)),
+                        numeros: (d.listaDezenas || d.dezenasSorteadasOrdemSorteio || []).map(n => parseInt(n,10)),
                         trevos: (d.trevosSorteados || []).map(n => parseInt(n,10)),
                         premio_principal: d.listaRateioPremio?.[0]?.valorPremio || 0,
                         acumulou: d.acumulado || false
@@ -679,14 +703,26 @@ const App = {
         btn.textContent = 'Atualizando...';
         await this.atualizarViaProxy(statusEl);
         btn.disabled = false;
-        btn.textContent = 'Forçar Atualização';
+        btn.textContent = '🔄 Forçar Atualização';
         this.recalcularConfiancaTodos();
         this.loadDashboard();
     },
 
+    // ★ CORRIGIDO: agora atualiza TODOS os 10 jogos
     async atualizarViaProxy(statusEl) {
         const caixaBase = 'https://servicebus2.caixa.gov.br/portaldeloterias/api';
-        const apiNomes = { 'mega-sena':'megasena','lotofacil':'lotofacil','lotomania':'lotomania','mais-milionaria':'maismilionaria' };
+        const apiNomes = {
+            'mega-sena':'megasena',
+            'lotofacil':'lotofacil',
+            'lotomania':'lotomania',
+            'mais-milionaria':'maismilionaria',
+            'quina':'quina',
+            'dia-de-sorte':'diadesorte',
+            'super-sete':'supersete',
+            'timemania':'timemania',
+            'dupla-sena':'duplasena',
+            'loteca':'loteca'
+        };
         let html = '';
         for (const [jogo, apiNome] of Object.entries(apiNomes)) {
             try {
@@ -707,8 +743,8 @@ const App = {
                         body:JSON.stringify({jogo_slug:jogo,resultados:[{
                             concurso,
                             data_sorteio: d.dataApuracao || '',
-                            numeros: (d.listaDezenas||[]).map(n => parseInt(n,10)),
-                            trevos: (d.trevosSorteados||[]).map(n => parseInt(n,10)),
+                            numeros: (d.listaDezenas || d.dezenasSorteadasOrdemSorteio || []).map(n => parseInt(n,10)),
+                            trevos: (d.trevosSorteados || []).map(n => parseInt(n,10)),
                             premio_principal: d.listaRateioPremio?.[0]?.valorPremio || 0,
                             acumulou: d.acumulado || false
                         }]})
@@ -759,6 +795,7 @@ const App = {
         document.getElementById('mj-tipo').disabled = false;
     },
 
+    // ★ CORRIGIDO: placeholders e hints para todos os 10 jogos
     atualizarModalPorTipo() {
         const tipo = document.getElementById('mj-tipo')?.value || 'mega-sena';
         const cfg = this.jogosConfig[tipo];
@@ -774,23 +811,34 @@ const App = {
         if (label) label.textContent = `Números (${rangeText} de ${String(cfg.min).padStart(2,'0')} a ${String(cfg.max).padStart(2,'0')})`;
         if (hint) {
             const placeholders = {
-                'mega-sena': 'Ex: 04, 15, 23, 38, 45, 52',
-                'lotofacil': 'Ex: 01, 02, 03, 05, 07, 08, 10, 11, 13, 14, 17, 18, 20, 22, 25',
-                'lotomania': 'Ex: 00, 05, 12, 18, 23, 31, 37, 42, 49, 55, 61, 67, 73, 78, 84, 88, 90, 93, 96, 99... (50 números)',
-                'mais-milionaria': 'Ex: 04, 15, 23, 28, 35, 42'
+                'mega-sena':       'Ex: 04, 15, 23, 38, 45, 52',
+                'lotofacil':       'Ex: 01, 02, 03, 05, 07, 08, 10, 11, 13, 14, 17, 18, 20, 22, 25',
+                'lotomania':       'Ex: 00, 05, 12, 18, 23, 31, 37, 42, 49, 55, 61, 67, 73, 78, 84, 88, 90, 93, 96, 99... (50 números)',
+                'mais-milionaria': 'Ex: 04, 15, 23, 28, 35, 42',
+                'quina':           'Ex: 05, 18, 33, 56, 72',
+                'dia-de-sorte':    'Ex: 03, 07, 12, 18, 22, 27, 31',
+                'super-sete':      'Ex: 3, 5, 1, 8, 0, 7, 2 (um por coluna)',
+                'timemania':       'Ex: 07, 15, 22, 33, 41, 50, 58, 63, 71, 80',
+                'dupla-sena':      'Ex: 05, 12, 23, 31, 40, 48',
+                'loteca':          'Ex: 1, 2, 1, 1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 1 (Col.1=1, Meio=0, Col.2=2)'
             };
             document.getElementById('mj-numeros').placeholder = placeholders[tipo] || '';
             const hintTexts = {
-                'mega-sena': 'Separados por vírgula ou espaço. Escolha exatamente 6 números.',
-                'lotofacil': 'Separados por vírgula ou espaço. Escolha de 15 a 20 números.',
-                'lotomania': 'Separados por vírgula ou espaço. Escolha exatamente 50 números de 00 a 99.',
-                'mais-milionaria': 'Separados por vírgula ou espaço. Escolha de 6 a 12 números.'
+                'mega-sena':       'Separados por vírgula ou espaço. Escolha exatamente 6 números.',
+                'lotofacil':       'Separados por vírgula ou espaço. Escolha de 15 a 20 números.',
+                'lotomania':       'Separados por vírgula ou espaço. Escolha exatamente 50 números de 00 a 99.',
+                'mais-milionaria': 'Separados por vírgula ou espaço. Escolha de 6 a 12 números.',
+                'quina':           'Separados por vírgula ou espaço. Escolha de 5 a 15 números de 01 a 80.',
+                'dia-de-sorte':    'Separados por vírgula ou espaço. Escolha de 7 a 15 números de 01 a 31.',
+                'super-sete':      'Separados por vírgula ou espaço. 7 números de 0 a 9 (um por coluna).',
+                'timemania':       'Separados por vírgula ou espaço. Escolha exatamente 10 números de 01 a 80.',
+                'dupla-sena':      'Separados por vírgula ou espaço. Escolha de 6 a 15 números de 01 a 50.',
+                'loteca':          'Separados por vírgula ou espaço. 14 palpites (1=mandante, 0=empate, 2=visitante).'
             };
             hint.textContent = hintTexts[tipo] || 'Separados por vírgula ou espaço.';
         }
         if (trevosContainer) {
             trevosContainer.style.display = cfg.trevos ? 'block' : 'none';
-            // Atualizar label dos trevos para +Milionária
             if (cfg.trevos) {
                 const trevosLabel = document.getElementById('mj-trevos-label');
                 if (trevosLabel) {
@@ -977,6 +1025,7 @@ const App = {
         this.showNotification(`Confiança atualizada para ${atualizados} jogos!`, 'success');
     },
 
+    // ★ CORRIGIDO: ícones e cores para todos os 10 jogos
     renderMeusJogos() {
         const container = document.getElementById('meus-jogos-lista');
         const totalEl = document.getElementById('meus-jogos-total');
@@ -997,8 +1046,16 @@ const App = {
             grupos[j.jogo_slug].push(j);
         }
         let html = '';
-        const icones = { 'mega-sena':'🎯', 'lotofacil':'🍀', 'lotomania':'🔮', 'mais-milionaria':'💎' };
-        const cores = { 'mega-sena':'#27ae60', 'lotofacil':'#9b59b6', 'lotomania':'#e67e22', 'mais-milionaria':'#00d4ff' };
+        const icones = {
+            'mega-sena':'🎯', 'lotofacil':'🍀', 'lotomania':'🔮', 'mais-milionaria':'💎',
+            'quina':'🔵', 'dia-de-sorte':'☘️', 'super-sete':'7️⃣', 'timemania':'⚽',
+            'dupla-sena':'🎰', 'loteca':'⚽'
+        };
+        const cores = {
+            'mega-sena':'#27ae60', 'lotofacil':'#9b59b6', 'lotomania':'#e67e22', 'mais-milionaria':'#00d4ff',
+            'quina':'#3498db', 'dia-de-sorte':'#2ecc71', 'super-sete':'#e74c3c', 'timemania':'#f39c12',
+            'dupla-sena':'#1abc9c', 'loteca':'#e67e22'
+        };
         for (const [slug, lista] of Object.entries(grupos)) {
             const cfg = this.jogosConfig[slug];
             const icon = icones[slug] || '🎫';
