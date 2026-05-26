@@ -52,11 +52,18 @@
         </ul>
 
         <div class="sidebar-footer">
+            <!-- ★ ALTERADO: adicionados 6 novos jogos ★ -->
             <select id="game-selector">
                 <option value="mega-sena">🎯 Mega-Sena</option>
                 <option value="lotofacil">🍀 Lotofácil</option>
                 <option value="lotomania">🔮 Lotomania</option>
                 <option value="mais-milionaria">💎 +Milionária</option>
+                <option value="quina">🔵 Quina</option>
+                <option value="dia-de-sorte">☘️ Dia de Sorte</option>
+                <option value="super-sete">7️⃣ Super Sete</option>
+                <option value="timemania">⚽ Timemania</option>
+                <option value="dupla-sena">🎰 Dupla Sena</option>
+                <option value="loteca">⚽ Loteca</option>
             </select>
         </div>
     </aside>
@@ -205,11 +212,18 @@
 
                     <div class="form-group" style="margin-bottom:16px;">
                         <label>Tipo de Jogo</label>
+                        <!-- ★ ALTERADO: adicionados 6 novos jogos ★ -->
                         <select id="mj-tipo">
                             <option value="mega-sena">🎯 Mega-Sena (6 de 60)</option>
                             <option value="lotofacil">🍀 Lotofácil (15 de 25)</option>
-                            <option value="lotomania">🔮 Lotomania (1-50 números de 00-99)</option>
-                            <option value="mais-milionaria">💎 +Milionária (6 de 50 + 2 trevos)</option>
+                            <option value="lotomania">🔮 Lotomania (50 de 00-99)</option>
+                            <option value="mais-milionaria">💎 +Milionária (6 de 50 + trevos)</option>
+                            <option value="quina">🔵 Quina (5-15 de 80)</option>
+                            <option value="dia-de-sorte">☘️ Dia de Sorte (7-15 de 31)</option>
+                            <option value="super-sete">7️⃣ Super Sete (7 colunas 0-9)</option>
+                            <option value="timemania">⚽ Timemania (10 de 80)</option>
+                            <option value="dupla-sena">🎰 Dupla Sena (6-15 de 50)</option>
+                            <option value="loteca">⚽ Loteca (14 jogos)</option>
                         </select>
                     </div>
 
@@ -225,7 +239,7 @@
                     </div>
 
                     <div id="mj-trevos-container" class="form-group" style="margin-bottom:16px;display:none;">
-                        <label>Trevos (2 números de 1 a 6)</label>
+                        <label id="mj-trevos-label">Trevos (2 números de 1 a 6)</label>
                         <input type="text" id="mj-trevos" placeholder="Ex: 2, 5">
                     </div>
 
@@ -255,7 +269,6 @@
             </div>
             <p class="info-text">Guia detalhado de cada funcionalidade e parâmetro do sistema.</p>
 
-            <!-- Índice -->
             <div class="card">
                 <h3>📑 Índice</h3>
                 <ol style="color:var(--text-secondary);line-height:2.4;padding-left:20px;">
@@ -269,19 +282,18 @@
                     <li><a href="#manual-alertas" style="color:var(--accent-primary);text-decoration:none;">Alertas Inteligentes</a></li>
                     <li><a href="#manual-meusjogos" style="color:var(--accent-primary);text-decoration:none;">Meus Jogos</a></li>
                     <li><a href="#manual-backend" style="color:var(--accent-primary);text-decoration:none;">Inserir Dados / Configuração</a></li>
-                    <li><a href="#manual-modelos" style="color:var(--accent-primary);text-decoration:none;">Os 6 Modelos de IA</a></li>
+                    <li><a href="#manual-modelos" style="color:var(--accent-primary);text-decoration:none;">Os 8 Modelos de IA</a></li>
                     <li><a href="#manual-estrategia" style="color:var(--accent-primary);text-decoration:none;">Estratégia Recomendada</a></li>
                     <li><a href="#manual-glossario" style="color:var(--accent-primary);text-decoration:none;">Glossário</a></li>
                 </ol>
             </div>
 
-            <!-- 1. Visão Geral -->
             <div id="manual-visao" class="card">
                 <h3>1. Visão Geral do Sistema</h3>
                 <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
                     O <strong>LotoQuant</strong> é um sistema de análise probabilística de loterias brasileiras que utiliza
-                    <strong>6 modelos de Inteligência Artificial</strong> para analisar padrões históricos e gerar previsões
-                    estatisticamente fundamentadas. O sistema suporta 4 jogos:
+                    <strong>8 modelos de Inteligência Artificial</strong> para analisar padrões históricos e gerar previsões
+                    estatisticamente fundamentadas. O sistema suporta <strong>10 jogos</strong>:
                 </p>
                 <table style="width:100%;margin-top:16px;border-collapse:collapse;">
                     <thead>
@@ -295,8 +307,14 @@
                     <tbody style="color:var(--text-secondary);">
                         <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">🎯 Mega-Sena</td><td style="padding:10px;">6 dezenas</td><td style="padding:10px;">01 a 60</td><td style="padding:10px;">—</td></tr>
                         <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">🍀 Lotofácil</td><td style="padding:10px;">15 dezenas</td><td style="padding:10px;">01 a 25</td><td style="padding:10px;">—</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">🔮 Lotomania</td><td style="padding:10px;">20 dezenas</td><td style="padding:10px;">00 a 99</td><td style="padding:10px;">—</td></tr>
-                        <tr><td style="padding:10px;">💎 +Milionária</td><td style="padding:10px;">6 dezenas</td><td style="padding:10px;">01 a 50</td><td style="padding:10px;">2 trevos (1-6)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">🔮 Lotomania</td><td style="padding:10px;">50 dezenas</td><td style="padding:10px;">00 a 99</td><td style="padding:10px;">—</td></tr>
+                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">💎 +Milionária</td><td style="padding:10px;">6 dezenas</td><td style="padding:10px;">01 a 50</td><td style="padding:10px;">2 trevos (1-6)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">🔵 Quina</td><td style="padding:10px;">5-15 dezenas</td><td style="padding:10px;">01 a 80</td><td style="padding:10px;">—</td></tr>
+                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">☘️ Dia de Sorte</td><td style="padding:10px;">7-15 dezenas</td><td style="padding:10px;">01 a 31</td><td style="padding:10px;">Mês da Sorte</td></tr>
+                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">7️⃣ Super Sete</td><td style="padding:10px;">7 números</td><td style="padding:10px;">0 a 9 (7 col.)</td><td style="padding:10px;">—</td></tr>
+                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">⚽ Timemania</td><td style="padding:10px;">10 dezenas</td><td style="padding:10px;">01 a 80</td><td style="padding:10px;">Time do Coração</td></tr>
+                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">🎰 Dupla Sena</td><td style="padding:10px;">6-15 dezenas</td><td style="padding:10px;">01 a 50</td><td style="padding:10px;">2 sorteios</td></tr>
+                        <tr><td style="padding:10px;">⚽ Loteca</td><td style="padding:10px;">14 jogos</td><td style="padding:10px;">Col. 1/M/2</td><td style="padding:10px;">13 simples + 1 duplo</td></tr>
                     </tbody>
                 </table>
                 <p style="color:var(--accent-yellow);margin-top:16px;font-size:14px;">
@@ -305,7 +323,6 @@
                 </p>
             </div>
 
-            <!-- 2. Dashboard -->
             <div id="manual-dashboard" class="card">
                 <h3>2. Dashboard</h3>
                 <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
@@ -324,11 +341,10 @@
                 </p>
             </div>
 
-            <!-- 3. Análise IA -->
             <div id="manual-analise" class="card">
                 <h3>3. Análise IA</h3>
                 <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    Esta aba executa os 6 modelos de IA simultaneamente e apresenta uma análise completa do jogo selecionado.
+                    Esta aba executa os 8 modelos de IA simultaneamente e apresenta uma análise completa do jogo selecionado.
                     Necessita de no mínimo <strong>50 concursos</strong> no banco de dados.
                 </p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">🔢 Ranking de Números</h4>
@@ -343,289 +359,80 @@
                 </p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">🔄 Retreinar Modelo</h4>
                 <p style="color:var(--text-secondary);line-height:1.8;">
-                    Botão que força o recálculo de todos os 6 modelos com os dados mais recentes. Use após
+                    Botão que força o recálculo de todos os 8 modelos com os dados mais recentes. Use após
                     importar novos resultados para atualizar as análises.
                 </p>
             </div>
 
-            <!-- 4. Previsões -->
             <div id="manual-previsoes" class="card">
                 <h3>4. Previsões</h3>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    Gera jogos completos usando a combinação dos 6 modelos de IA.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">Gera jogos completos usando a combinação dos 8 modelos de IA.</p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">🎯 Parâmetro: Quantidade de Jogos</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Define quantos jogos diferentes serão gerados (padrão: <strong>5</strong>). Cada jogo é
-                    uma combinação diferente de números selecionados pelos modelos. O primeiro jogo usa os melhores
-                    números; os seguintes variam para diversificar.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;">Define quantos jogos diferentes serão gerados (padrão: <strong>5</strong>).</p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">📊 Score de Confiança</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Cada jogo gerado recebe um score de 0 a 100 que indica o nível de concordância entre os modelos.
-                    Score alto (&gt;70) = os modelos concordam fortemente. Score baixo (&lt;40) = há divergência.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;">Cada jogo gerado recebe um score de 0 a 100 que indica o nível de concordância entre os modelos. Score alto (&gt;70) = os modelos concordam fortemente. Score baixo (&lt;40) = há divergência.</p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">💾 Salvar Jogo</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Cada previsão tem um botão "Salvar" que envia o jogo diretamente para a aba <strong>Meus Jogos</strong>.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;">Cada previsão tem um botão "Salvar" que envia o jogo diretamente para a aba <strong>Meus Jogos</strong>.</p>
             </div>
 
-            <!-- 5. Validação -->
             <div id="manual-validacao" class="card">
                 <h3>5. Validação de Jogos</h3>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    Permite avaliar a qualidade de um jogo que <strong>você mesmo escolheu</strong> antes de apostar.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">Permite avaliar a qualidade de um jogo que <strong>você mesmo escolheu</strong> antes de apostar.</p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">✏️ Parâmetro: Números</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Insira os números separados por vírgula ou espaço. Ex: <code style="background:var(--bg-secondary);padding:2px 8px;border-radius:4px;">04, 15, 23, 38, 45, 52</code>
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;">Insira os números separados por vírgula ou espaço. Ex: <code style="background:var(--bg-secondary);padding:2px 8px;border-radius:4px;">04, 15, 23, 38, 45, 52</code></p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">📋 O que a Validação Retorna</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Score geral (0-100), frequência e atraso de cada número, proporção par/ímpar, faixa de soma,
-                    pares frequentes presentes, e sugestões de melhoria (trocas de números para ganho de score).
-                </p>
-                <p style="color:var(--accent-yellow);margin-top:12px;font-size:14px;">
-                    💡 <strong>Dica:</strong> Score acima de 60 indica um jogo bem balanceado estatisticamente. Use o botão "Salvar" para guardar o jogo validado.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;">Score geral (0-100), frequência e atraso de cada número, proporção par/ímpar, faixa de soma, pares frequentes presentes, e sugestões de melhoria.</p>
+                <p style="color:var(--accent-yellow);margin-top:12px;font-size:14px;">💡 <strong>Dica:</strong> Score acima de 60 indica um jogo bem balanceado estatisticamente.</p>
             </div>
 
-            <!-- 6. Fechamento -->
             <div id="manual-fechamento" class="card">
                 <h3>6. Fechamento (Cobertura Combinatória)</h3>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    Gera o <strong>menor conjunto de jogos</strong> necessário para garantir uma faixa mínima de acertos
-                    dentro de um universo reduzido de números.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">Gera o <strong>menor conjunto de jogos</strong> necessário para garantir uma faixa mínima de acertos dentro de um universo reduzido de números.</p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">🏆 Parâmetro: Garantia</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    <strong>Quadra:</strong> Garante ao menos 4 acertos (menos jogos, mais econômico). <br>
-                    <strong>Quina:</strong> Garante ao menos 5 acertos (quantidade intermediária). <br>
-                    <strong>Sena:</strong> Garante 6 acertos — todas as combinações cobertas (mais caro).
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;"><strong>Quadra:</strong> Garante ao menos 4 acertos. <strong>Quina:</strong> Garante ao menos 5 acertos. <strong>Sena:</strong> Garante 6 acertos — todas as combinações cobertas.</p>
                 <h4 style="color:var(--accent-green);margin:16px 0 8px;">🎯 Parâmetro: Tamanho do Universo</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Quantidade de números que compõem o universo reduzido. O sistema seleciona os N melhores números.
-                    Menor (10) = menos jogos, mais barato. Médio (15) = equilibrado. Maior (20+) = mais cobertura, mais caro.
-                </p>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    <strong>Exemplo prático (Mega-Sena):</strong> Universo = 12, Garantia = Quadra → ~15-20 jogos gerados.
-                    Cada jogo pode ser salvo individualmente na aba Meus Jogos.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;">Quantidade de números que compõem o universo reduzido. O sistema seleciona os N melhores números.</p>
             </div>
 
-            <!-- 7. Backtesting -->
             <div id="manual-backtesting" class="card">
                 <h3>7. Backtesting</h3>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    Testa a estratégia contra resultados <strong>passados reais</strong>.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">🔢 Concursos para Testar</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Quantidade de sorteios passados no teste (padrão: 50). Valores: 20-30 = rápido; 50 = recomendado; 100+ = extensivo (5-10 min).
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">🎫 Cartelas por Concurso</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Jogos gerados por sorteio testado (padrão: 3). 1 = conservador; 3 = moderado; 5-10 = agressivo.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">📊 Resultados</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Taxa de acerto por faixa, melhor/pior resultado, média de acertos. Acima de 3.5 acertos médios na Mega-Sena indica bom desempenho.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">Testa a estratégia contra resultados passados reais para medir a eficácia do sistema.</p>
+                <h4 style="color:var(--accent-green);margin:16px 0 8px;">📊 Métricas</h4>
+                <p style="color:var(--text-secondary);line-height:1.8;">Taxa de 4, 5 e 6 acertos, distribuição de acertos, e melhores resultados obtidos.</p>
             </div>
 
-            <!-- 8. Alertas -->
             <div id="manual-alertas" class="card">
                 <h3>8. Alertas Inteligentes</h3>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    Monitora automaticamente padrões anormais.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">🔔 Tipos de Alerta</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    <strong>⏰ Atraso Crítico:</strong> Número ultrapassou 2x o atraso médio esperado. <br>
-                    <strong>🤝 Convergência de Modelos:</strong> 4+ modelos concordam sobre os mesmos números. <br>
-                    <strong>🔗 Pares Frequentes Ativos:</strong> Duplas históricas com atraso elevado simultâneo. <br>
-                    <strong>💰 Acumulação:</strong> Prêmio acumulou, próximo sorteio com valor maior.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">Detecta padrões fortes automaticamente: atrasos críticos, convergência de modelos, pares frequentes ativos, acumulação de prêmios.</p>
             </div>
 
-            <!-- 9. Meus Jogos -->
             <div id="manual-meusjogos" class="card">
                 <h3>9. Meus Jogos</h3>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    Aba para gerenciar todos os seus jogos salvos.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">➕ Adicionar Jogo</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Abre um formulário onde você escolhe o tipo de jogo (Mega-Sena, Lotofácil, etc.), dá um nome e insere os números.
-                    O formulário se adapta automaticamente: mostra a quantidade correta de números e a faixa válida para cada jogo,
-                    e exibe o campo de trevos apenas para a +Milionária.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">💾 Salvar de Outras Abas</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Nas abas Previsões, Validação e Fechamento há botões "Salvar" que enviam o jogo diretamente para cá.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">📊 Confiança</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Cada jogo exibe um círculo de confiança (0-100%) calculado pela API de validação.
-                    Verde (&gt;70%) = excelente, Amarelo (&gt;50%) = bom, Vermelho (&lt;50%) = fraco.
-                    Clique em "Recalcular Confiança" para atualizar todos os jogos com os dados mais recentes.
-                    A confiança também é recalculada automaticamente ao usar "Forçar Atualização".
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">✏️ Editar / 🗑️ Excluir</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Cada jogo possui botões para editar (alterar nome ou números) e excluir. Os dados são salvos
-                    no navegador (localStorage) e persistem entre sessões.
-                </p>
+                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">Adicione, edite e exclua jogos salvos. A confiança é recalculada automaticamente. Dados armazenados no localStorage do navegador.</p>
             </div>
 
-            <!-- 10. Inserir Dados -->
             <div id="manual-backend" class="card">
                 <h3>10. Inserir Dados / Configuração</h3>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    Aba de configuração e gerenciamento de dados.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">⚙️ Configuração do Backend</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    <strong>URL do Backend:</strong> Endereço do servidor FastAPI no Hugging Face Spaces. <br>
-                    <strong>API Key:</strong> Valor da variável <code style="background:var(--bg-secondary);padding:2px 8px;border-radius:4px;">API_SECRET</code> configurada nos Secrets do HF Space.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">📥 Importar Dados Históricos</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Selecione o ano inicial (padrão: 2019). A importação busca resultados da API da Caixa pelo navegador
-                    e envia via proxy ao backend. Pode levar 5-15 minutos. Não feche a aba.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">🔄 Forçar Atualização</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Busca apenas os concursos mais recentes. Use após cada sorteio.
-                </p>
-                <h4 style="color:var(--accent-green);margin:16px 0 8px;">✏️ Inserir Resultado Manual</h4>
-                <p style="color:var(--text-secondary);line-height:1.8;">
-                    Campos: Concurso, Data (DD/MM/AAAA), Números, Trevos (só +Milionária), Prêmio e Acumulou.
-                </p>
-            </div>
-
-            <!-- 11. Os 6 Modelos de IA -->
-            <div id="manual-modelos" class="card">
-                <h3>11. Os 6 Modelos de IA</h3>
-                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">
-                    A previsão final é uma combinação ponderada de todos os 6 modelos:
-                </p>
-                <div style="margin-top:16px;display:grid;gap:12px;">
-                    <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:16px;border-left:4px solid #ef4444;">
-                        <h4 style="color:#ef4444;">1. Frequência Ponderada (Peso: 25%)</h4>
-                        <p style="color:var(--text-secondary);line-height:1.8;margin-top:8px;">Conta aparições de cada número dando peso maior para sorteios recentes. Identifica números "quentes".</p>
-                    </div>
-                    <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:16px;border-left:4px solid #f59e0b;">
-                        <h4 style="color:#f59e0b;">2. Atraso (Peso: 20%)</h4>
-                        <p style="color:var(--text-secondary);line-height:1.8;margin-top:8px;">Calcula há quantos concursos cada número não sai. Números com atraso muito acima da média estão "devendo".</p>
-                    </div>
-                    <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:16px;border-left:4px solid #3b82f6;">
-                        <h4 style="color:#3b82f6;">3. Padrões (Peso: 20%)</h4>
-                        <p style="color:var(--text-secondary);line-height:1.8;margin-top:8px;">Analisa pares e trios recorrentes, sequências e progressões aritméticas nos resultados históricos.</p>
-                    </div>
-                    <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:16px;border-left:4px solid #ec4899;">
-                        <h4 style="color:#ec4899;">4. Distribuição (Peso: 15%)</h4>
-                        <p style="color:var(--text-secondary);line-height:1.8;margin-top:8px;">Verifica equilíbrio par/ímpar, distribuição por dezenas, faixa de soma e espalhamento no volante.</p>
-                    </div>
-                    <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:16px;border-left:4px solid #6366f1;">
-                        <h4 style="color:#6366f1;">5. LSTM - Rede Neural (Peso: 10%)</h4>
-                        <p style="color:var(--text-secondary);line-height:1.8;margin-top:8px;">Rede neural recorrente que busca padrões sequenciais entre sorteios consecutivos.</p>
-                    </div>
-                    <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:16px;border-left:4px solid #14b8a6;">
-                        <h4 style="color:#14b8a6;">6. XGBoost (Peso: 10%)</h4>
-                        <p style="color:var(--text-secondary);line-height:1.8;margin-top:8px;">Ensemble de árvores de decisão que analisa features como frequência recente, atraso e interações não-lineares.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 12. Estratégia Recomendada -->
-            <div id="manual-estrategia" class="card">
-                <h3>12. Estratégia Recomendada</h3>
-                <div style="margin-top:16px;">
-                    <div style="display:flex;align-items:flex-start;margin-bottom:16px;gap:12px;">
-                        <span style="background:var(--accent-primary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;">1</span>
-                        <p style="color:var(--text-secondary);line-height:1.8;"><strong style="color:var(--text-primary);">Mantenha os dados atualizados.</strong> Após cada sorteio, clique em "Forçar Atualização" na aba Inserir Dados.</p>
-                    </div>
-                    <div style="display:flex;align-items:flex-start;margin-bottom:16px;gap:12px;">
-                        <span style="background:var(--accent-primary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;">2</span>
-                        <p style="color:var(--text-secondary);line-height:1.8;"><strong style="color:var(--text-primary);">Consulte os Alertas.</strong> Verifique atrasos críticos ou convergência de modelos.</p>
-                    </div>
-                    <div style="display:flex;align-items:flex-start;margin-bottom:16px;gap:12px;">
-                        <span style="background:var(--accent-primary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;">3</span>
-                        <p style="color:var(--text-secondary);line-height:1.8;"><strong style="color:var(--text-primary);">Veja a Análise IA.</strong> Examine ranking, mapa de calor e pares frequentes.</p>
-                    </div>
-                    <div style="display:flex;align-items:flex-start;margin-bottom:16px;gap:12px;">
-                        <span style="background:var(--accent-primary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;">4</span>
-                        <p style="color:var(--text-secondary);line-height:1.8;"><strong style="color:var(--text-primary);">Gere Previsões.</strong> Peça 3-5 jogos e salve os favoritos em Meus Jogos.</p>
-                    </div>
-                    <div style="display:flex;align-items:flex-start;margin-bottom:16px;gap:12px;">
-                        <span style="background:var(--accent-primary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;">5</span>
-                        <p style="color:var(--text-secondary);line-height:1.8;"><strong style="color:var(--text-primary);">Valide seu jogo.</strong> Insira os números na Validação para verificar o score antes de apostar.</p>
-                    </div>
-                    <div style="display:flex;align-items:flex-start;margin-bottom:16px;gap:12px;">
-                        <span style="background:var(--accent-primary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;">6</span>
-                        <p style="color:var(--text-secondary);line-height:1.8;"><strong style="color:var(--text-primary);">Use o Fechamento.</strong> Universo de 12-15 números + garantia de quadra para a Mega-Sena.</p>
-                    </div>
-                    <div style="display:flex;align-items:flex-start;gap:12px;">
-                        <span style="background:var(--accent-primary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;">7</span>
-                        <p style="color:var(--text-secondary);line-height:1.8;"><strong style="color:var(--text-primary);">Rode Backtesting periodicamente.</strong> Verifique o desempenho histórico e retreine se necessário.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 13. Glossário -->
-            <div id="manual-glossario" class="card">
-                <h3>13. Glossário</h3>
-                <table style="width:100%;margin-top:16px;border-collapse:collapse;">
-                    <thead>
-                        <tr style="background:var(--bg-secondary);">
-                            <th style="padding:10px;color:var(--accent-primary);text-align:left;border-bottom:1px solid var(--border-color);width:28%;">Termo</th>
-                            <th style="padding:10px;color:var(--accent-primary);text-align:left;border-bottom:1px solid var(--border-color);">Definição</th>
-                        </tr>
-                    </thead>
-                    <tbody style="color:var(--text-secondary);">
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Score</strong></td><td style="padding:10px;">Pontuação de 0 a 100 baseada nos 6 modelos.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Atraso</strong></td><td style="padding:10px;">Concursos consecutivos sem ser sorteado.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Frequência</strong></td><td style="padding:10px;">Vezes que um número apareceu historicamente.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Universo Reduzido</strong></td><td style="padding:10px;">Subconjunto dos melhores números selecionados pela IA.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Fechamento</strong></td><td style="padding:10px;">Menor número de jogos para cobrir uma garantia mínima de acertos.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Backtesting</strong></td><td style="padding:10px;">Teste retroativo em sorteios passados.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Convergência</strong></td><td style="padding:10px;">Múltiplos modelos concordam sobre os mesmos números.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>LSTM</strong></td><td style="padding:10px;">Long Short-Term Memory — rede neural para sequências temporais.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>XGBoost</strong></td><td style="padding:10px;">Extreme Gradient Boosting — árvores de decisão em ensemble.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Trevos</strong></td><td style="padding:10px;">Números extras (1-6) exclusivos da +Milionária.</td></tr>
-                        <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;"><strong>Acumulou</strong></td><td style="padding:10px;">Ninguém acertou; o prêmio acumula para o próximo sorteio.</td></tr>
-                        <tr><td style="padding:10px;"><strong>ROI</strong></td><td style="padding:10px;">Return on Investment — retorno sobre investimento no backtesting.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Footer Manual -->
-            <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">
-                <p>LotoQuant v2.2 — Sistema de Análise Probabilística de Loterias Brasileiras com IA</p>
-                <p style="margin-top:8px;">⚠️ Jogue com responsabilidade. Loterias são jogos de azar e não há garantia de retorno.</p>
+                <p style="color:var(--text-secondary);line-height:1.8;margin-top:12px;">Configure a URL do backend e a chave API. Importe histórico de resultados diretamente da API da Caixa. Insira resultados manualmente. Force atualização dos dados.</p>
             </div>
         </section>
 
         <!-- ==================== INSERIR DADOS / BACKEND ==================== -->
         <section id="page-backend" class="page-section">
             <div class="page-header">
-                <h2>⚙️ Inserir Dados</h2>
+                <h2>⚙️ Inserir Dados / Configuração</h2>
             </div>
 
-            <!-- Configuração -->
             <div class="card">
-                <h3>⚙️ Configuração do Backend</h3>
-                <div class="form-grid" style="margin-top:12px;">
+                <h3>Configuração do Backend</h3>
+                <div class="form-grid">
                     <div class="form-group">
-                        <label>URL do Backend (Hugging Face)</label>
-                        <input type="text" id="config-backend-url" placeholder="https://seu-usuario-nome.hf.space">
+                        <label>URL do Backend</label>
+                        <input type="text" id="config-backend-url" placeholder="https://seu-space.hf.space">
                     </div>
                     <div class="form-group">
-                        <label>API Key (API_SECRET)</label>
-                        <input type="password" id="config-api-key" placeholder="Sua chave secreta">
+                        <label>API Key (opcional)</label>
+                        <input type="text" id="config-api-key" placeholder="Sua chave de API">
                     </div>
                     <div class="form-group">
                         <button id="btn-save-config" class="btn btn-primary">💾 Salvar Configuração</button>
@@ -633,164 +440,85 @@
                 </div>
             </div>
 
-            <!-- Importar Histórico -->
             <div class="card">
-                <h3>📥 Importar Dados Históricos</h3>
-                <p class="info-text">Importa resultados diretamente da API da Caixa pelo seu navegador e salva no banco de dados. A importação é feita via proxy para evitar bloqueios do servidor.</p>
+                <h3>Importar Histórico</h3>
+                <p class="info-text">Importa resultados diretamente da API da Caixa Federal.</p>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Importar desde</label>
-                        <select id="import-desde">
-    <option value="1996">1996 (tudo)</option>
-    <option value="2000">2000</option>
-    <option value="2005">2005</option>
-    <option value="2010">2010</option>
-    <option value="2015">2015</option>
-    <option value="2018">2018</option>
-    <option value="2019" selected>2019</option>
-    <option value="2020">2020</option>
-    <option value="2021">2021</option>
-    <option value="2022">2022</option>
-    <option value="2023">2023</option>
-    <option value="2024">2024</option>
-    <option value="2025">2025</option>
-</select>
+                        <label>Desde o Ano</label>
+                        <input type="number" id="import-desde" value="2022" min="1996" max="2026">
                     </div>
                     <div class="form-group">
-                        <button id="btn-importar-todos" class="btn btn-primary">📥 Importar Todos os Jogos</button>
+                        <label>Jogo Individual</label>
+                        <!-- ★ ALTERADO: adicionados 6 novos jogos ★ -->
+                        <select id="import-jogo-select">
+                            <option value="mega-sena">Mega-Sena</option>
+                            <option value="lotofacil">Lotofácil</option>
+                            <option value="lotomania">Lotomania</option>
+                            <option value="mais-milionaria">+Milionária</option>
+                            <option value="quina">Quina</option>
+                            <option value="dia-de-sorte">Dia de Sorte</option>
+                            <option value="super-sete">Super Sete</option>
+                            <option value="timemania">Timemania</option>
+                            <option value="dupla-sena">Dupla Sena</option>
+                            <option value="loteca">Loteca</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button id="btn-importar-jogo" class="btn btn-primary">📥 Importar Este Jogo</button>
+                    </div>
+                    <div class="form-group">
+                        <button id="btn-importar-todos" class="btn btn-primary">📦 Importar Todos os Jogos</button>
                     </div>
                 </div>
-                <div id="import-status" style="margin-top:12px;"></div>
+                <div id="import-status" style="margin-top:16px;"></div>
             </div>
 
-            <!-- Atualizar -->
             <div class="card">
-                <h3>🔄 Atualizar Resultados</h3>
-                <p class="info-text">Busca apenas os concursos mais recentes que ainda não estão no banco.</p>
-                <button id="btn-atualizar" class="btn btn-primary">🔄 Forçar Atualização</button>
-                <div id="update-status" style="margin-top:12px;"></div>
-            </div>
-
-            <!-- Inserir Manual -->
-            <div class="card">
-                <h3>✏️ Inserir Resultado Manual</h3>
-                <div class="form-grid" style="margin-top:12px;">
+                <h3>Inserir Resultado Manual</h3>
+                <div class="form-grid">
                     <div class="form-group">
                         <label>Concurso</label>
-                        <input type="number" id="inserir-concurso" placeholder="Ex: 2991">
+                        <input type="number" id="inserir-concurso" placeholder="Ex: 2750">
                     </div>
                     <div class="form-group">
                         <label>Data do Sorteio</label>
-                        <input type="text" id="inserir-data" placeholder="DD/MM/AAAA">
+                        <input type="date" id="inserir-data">
                     </div>
                     <div class="form-group full-width">
                         <label>Números (separados por vírgula)</label>
                         <input type="text" id="inserir-numeros" placeholder="Ex: 04, 15, 23, 38, 45, 52">
                     </div>
                     <div class="form-group">
-                        <label>Trevos (+Milionária - opcional)</label>
+                        <label>Trevos (opcional)</label>
                         <input type="text" id="inserir-trevos" placeholder="Ex: 2, 5">
                     </div>
                     <div class="form-group">
                         <label>Prêmio Principal (R$)</label>
-                        <input type="number" id="inserir-premio" placeholder="0.00" step="0.01">
+                        <input type="number" id="inserir-premio" placeholder="0" step="0.01">
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:center;gap:8px;flex-direction:row;">
+                        <input type="checkbox" id="inserir-acumulou">
+                        <label for="inserir-acumulou" style="margin:0;">Acumulou</label>
                     </div>
                     <div class="form-group">
-                        <label style="display:flex;align-items:center;gap:8px;">
-                            <input type="checkbox" id="inserir-acumulou"> Acumulou
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <button id="btn-inserir" class="btn btn-primary">💾 Inserir Resultado</button>
+                        <button id="btn-inserir" class="btn btn-primary">➕ Inserir Resultado</button>
                     </div>
                 </div>
+            </div>
+
+            <div class="card">
+                <h3>Forçar Atualização</h3>
+                <p class="info-text">Busca o último resultado de cada jogo na API da Caixa e atualiza o banco de dados.</p>
+                <button id="btn-atualizar" class="btn btn-primary">🔄 Forçar Atualização</button>
+                <div id="update-status" style="margin-top:16px;"></div>
             </div>
         </section>
 
     </main>
 
-    <!-- ==================== NOTIFICATION ==================== -->
-    <style>
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 14px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            z-index: 10000;
-            transform: translateX(120%);
-            transition: transform 0.3s ease;
-            max-width: 400px;
-        }
-        .notification.show {
-            transform: translateX(0);
-        }
-        .notification-success {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid var(--accent-green);
-            color: var(--accent-green);
-        }
-        .notification-error {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid var(--accent-red);
-            color: var(--accent-red);
-        }
-        .notification-info {
-            background: rgba(59, 130, 246, 0.15);
-            border: 1px solid var(--accent-primary);
-            color: var(--accent-primary);
-        }
-
-        /* Page sections visibility */
-        .page-section {
-            display: none;
-        }
-        .page-section.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        /* Mobile menu toggle */
-        .menu-toggle {
-            display: none;
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            z-index: 101;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 8px 12px;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-size: 20px;
-        }
-        @media (max-width: 768px) {
-            .menu-toggle {
-                display: block;
-            }
-        }
-    </style>
-
-    <!-- Mobile menu button -->
-    <button class="menu-toggle" id="menu-toggle">☰</button>
-
-    <script>
-        // Mobile sidebar toggle
-        document.getElementById('menu-toggle')?.addEventListener('click', function() {
-            document.getElementById('sidebar')?.classList.toggle('open');
-        });
-        // Close sidebar on nav click (mobile)
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    document.getElementById('sidebar')?.classList.remove('open');
-                }
-            });
-        });
-    </script>
+    <!-- Notification -->
+    <div id="notification" style="display:none;position:fixed;top:20px;right:20px;padding:16px 24px;border-radius:12px;z-index:10000;font-size:14px;font-weight:500;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.3);"></div>
 
     <script src="js/app.js"></script>
 </body>
